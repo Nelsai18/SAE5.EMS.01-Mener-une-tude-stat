@@ -2,8 +2,10 @@ Répartition du travail :
 
 Saïnel : Mission 1
 
-Grace : Diagramme de Gantt, Mission 2 (3 et 4)
-
+Grace : Diagramme de Gantt, Mission 2 (3 et 4) et code somaire
+Pour code somaire: les mots en gras sont entre deux etoiles
+                    pour les titres on met # devant et ## pour les sous-titres
+                    et on met \newpage pour faire une nouvelle page
 Zarafa : Mission 2 (1 et 1)
 
 Leo : Résumé de l’article, Mission 3
