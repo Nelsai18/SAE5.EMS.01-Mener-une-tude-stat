@@ -1,0 +1,48 @@
+---
+title: "SAE5.EMS.01 – MENER UNE ÉTUDE STATISTIQUE DANS UN DOMAINE D’APPLICATION"
+author: "Groupe :Fortunato Grace, Ahamada Saïnel, Zarafa Nassur Boinaheri, Leo Pignol"
+date: "Année universitaire : 2024–2025"
+output:
+  word_document:
+    reference_docx: "C:/Users/Fortunato/Documents/BUT3/SAE501 Mener une etude/StylesPourWord.docx"
+    toc: true
+    toc_depth: 3
+    number_sections: false
+    fig_caption: true
+---
+
+\newpage
+
+![](C:/Users/Fortunato/Documents/BUT3/Logo SD - Carcassonne.png){width=150px}
+
+![](C:/Users/Fortunato/Documents/BUT3//IUT-Logo2-Carcassonne-T1.png){width=150px}
+
+**2040 CAP DES 100% DE VOITURES ELECTRIQUES**
+
+---
+
+ **Enseignant référent :**
+ 
+M. Sébastien Pinel
+
+---
+
+\newpage
+
+**Table des matières**
+
+# Introduction
+\newpage
+
+**Table des figures**
+
+(Insérer dans Word : Références → Table des illustrations)
+\newpage
+
+
+
+\newpage
+```{r}
+
+```
+
