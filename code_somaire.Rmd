@@ -1,0 +1,84 @@
+---
+output:
+  word_document: default
+---
+---
+title: "SAE5.EMS.01 – MENER UNE ÉTUDE STATISTIQUE DANS UN DOMAINE D’APPLICATION\n
+         
+         2040 CAP DES 100% DE VOITURES ELECTRIQUES"
+author: "Groupe :Fortunato Grace, Ahamada Saïnel, Zarafa Nassur Boinaheri, Leo Pignol"
+date: "Année universitaire : 2024–2025"
+output:
+  word_document:
+    reference_docx: "U:/Documents/BUT3/SAE 501 Mener une etude stat/StylesPourWord.docx"
+    toc: true
+    toc_depth: 3
+    number_sections: false
+    fig_caption: true
+---
+
+|  |  |
+|:--|--:|
+| ![](U:/Documents/BUT3/IUT-Logo2-Carcassonne-T1.png){width=150px} | ![](U:/Documents/BUT3/Logo SD - Carcassonne.png){width=150px} |
+
+|                                                                               |
+|:-----------------------------------------------------------------------------:|                                                       
+| **Enseignant référent :** |
+| M. Sébastien Pinel      |
+---
+\newpage
+
+\newpage
+# Résumé
+
+\newpage
+#Table des matières
+
+```{=openxml}
+<w:p>
+  <w:r>
+    <w:fldChar w:fldCharType="begin"/>
+    <w:instrText xml:space="preserve"> TOC \o "1-3" \h \z \u </w:instrText>
+    <w:fldChar w:fldCharType="separate"/>
+    <w:updateFields w:val="true"/>
+    <w:fldChar w:fldCharType="end"/>
+  </w:r>
+</w:p>
+
+```
+
+
+\newpage
+**Table des figures**
+
+**Table des abréviations**
+
+\newpage
+
+# Introduction
+blabla
+
+# Mission1
+blabla
+
+## Mission 1.1
+blabla
+
+## Mission 1.2
+blabla
+
+# Conclusion
+blabla
+(Insérer dans Word : Références → Table des illustrations)
+
+
+
+
+\newpage
+```{r}
+
+```
+
+
+
+
