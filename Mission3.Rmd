@@ -1,0 +1,157 @@
+```{r}
+library(readxl)
+
+rte_2018 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2018.xlsx")
+rte_2019 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2019.xlsx")
+rte_2020 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2020.xlsx")
+rte_2021 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2021.xlsx")
+rte_2022 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2022.xlsx")
+rte_2023 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2023.xlsx")
+```
+
+
+Tableau Consommation électrique en France (Mégawatt)
+```{r}
+library(dplyr)
+
+
+conso <- bind_rows(
+  rte_2018 %>% select(Date, Consommation),
+  rte_2019 %>% select(Date, Consommation),
+  rte_2020 %>% select(Date, Consommation),
+  rte_2021 %>% select(Date, Consommation),
+  rte_2022 %>% select(Date, Consommation),
+  rte_2023 %>% select(Date, Consommation)
+)
+
+conso <- na.omit(conso)
+```
+
+Data frame Année, Mois, Consommation
+```{r}
+# Convertir la colonne Date en type Date
+conso$Date <- as.Date(conso$Date)
+
+library(dplyr)
+library(lubridate)
+
+conso<- conso%>%
+  mutate(
+    Année = year(Date),
+    Mois  = month(Date)
+  )
+```
+
+
+```{r}
+library(dplyr)
+
+monthly_avg <- conso %>%
+  group_by(Année, Mois) %>%
+  summarise(Conso_moy = mean(Consommation, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Date_mois = as.Date(sprintf("%04d-%02d-01", Année, Mois)))
+```
+
+Graphique
+```{r}
+# Visualiser la saisonnalité mensuelle par année
+
+library(ggplot2)
+
+# dates des january pour les labels
+january_dates  <- monthly_avg$Date_mois[monthly_avg$Mois == 1]
+january_labels <- monthly_avg$Année[monthly_avg$Mois == 1]
+
+ggplot(monthly_avg, aes(x = Date_mois, y = Conso_moy)) +
+  geom_line(color = "steelblue", size = 1) +
+  scale_x_date(
+    breaks = january_dates,      # on ne place des graduations qu'en janvier
+    labels = january_labels      # les labels sont juste les années
+  ) +
+  labs(
+    title = "Consommation électrique en France (Mégawatt)",
+    x = "Années",
+    y = "Consommation moyenne mensuelle (MW)"
+  ) +
+  theme_minimal()
+```
+
+Tableau Filières de production (MW) en France (Mégawatt)
+```{r}
+library(dplyr)
+
+
+FP <- bind_rows(
+  rte_2018 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2019 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2020 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2021 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2022 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2023 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul)
+)
+
+FP <- na.omit(FP)
+
+# Convertir la colonne Date en type Date
+conso$Date <- as.Date(conso$Date)
+
+library(dplyr)
+library(lubridate)
+
+FP<- FP%>%
+  mutate(
+    Année = year(Date),
+    Mois  = month(Date)
+  )
+```
+
+```{r}
+library(dplyr)
+
+FP_2020 <- FP %>%
+  filter(Année == 2020) %>%
+  summarise(
+    Nucléaire   = sum(Nucléaire, na.rm = TRUE),
+    Hydraulique = sum(Hydraulique, na.rm = TRUE),
+    Gaz         = sum(Gaz, na.rm = TRUE),
+    Eolien      = sum(Eolien, na.rm = TRUE),
+    Bioénergies = sum(Bioénergies, na.rm = TRUE),
+    Solaire     = sum(Solaire, na.rm = TRUE),
+    Charbon     = sum(Charbon, na.rm = TRUE),
+    Fioul       = sum(Fioul, na.rm = TRUE)
+  ) %>%
+  tidyr::pivot_longer(cols = everything(),
+                      names_to = "Filière",
+                      values_to = "Production")
+
+FP_2020 <- FP_2020 %>%
+  arrange(Production) %>%
+  mutate(Filière = factor(Filière, levels = Filière))
+```
+
+
+```{r}
+library(ggplot2)
+library(scales)  # pour comma()
+
+ggplot(FP_2020, aes(x = Filière, y = Production)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Filières de production 2020 (Mégawatt)",
+    x = NULL,
+    y = "Production totale (MW)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  scale_y_continuous(labels = comma)  # <-- affiche les nombres détaillés
+```
+
+Profiler un pic d’utilisation des bornes de recharge
+```{r}
+
+```
+
