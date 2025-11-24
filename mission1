@@ -1,0 +1,263 @@
+##---------------------- 1.Évolution du parc automobile électrique jusqu’à 2040. ----------------------##
+```{r}
+# Chargement des bibliothèques
+library(readxl)
+library(dplyr)
+library(janitor)
+library(tidyr)
+library(ggplot2)
+
+# 1. Importation du fichier
+data <- read_excel("2if5.xls", skip = 3)  
+
+# 2. Nettoyage des noms de colonnes
+data <- janitor::clean_names(data)
+
+# 3. Remplir les valeurs manquantes de 'energie'
+data <- tidyr::fill(data, energie, .direction = "down")
+
+# 4. Supprimer les lignes totaux et non déterminées
+data <- data %>%
+  filter(!grepl("Total|Toutes|non|dét", energie, ignore.case = TRUE),
+         !co2_g_km %in% c("Total", "Non dét."))
+
+# 5. Convertir les colonnes xYYYY en numeric
+data <- data %>%
+  mutate(across(starts_with("x"), as.numeric))
+
+# 6. Pivot long
+data_long <- data %>%
+  pivot_longer(
+    cols = starts_with("x"),
+    names_to = "annee",
+    values_to = "nombre"
+  ) %>%
+  mutate(
+    annee = as.numeric(gsub("x", "", annee))
+  )
+
+# 7. Filtrage sur les véhicules électriques et années >= 2010
+data_elec <- data_long %>%
+  filter(grepl("electri", energie, ignore.case = TRUE),
+         annee >= 2010,
+         !is.na(nombre))
+
+# 8. Agrégation par année pour obtenir les immatriculations annuelles
+data_elec_sum <- data_elec %>%
+  group_by(annee) %>%
+  summarise(nombre_annuel = sum(nombre, na.rm = TRUE), .groups = "drop") %>%
+  arrange(annee)
+
+# 9. Calcul du parc cumulatif (pour information / sous-titre)
+data_elec_sum <- data_elec_sum %>%
+  mutate(parc_cumule = cumsum(nombre_annuel))
+```
+
+
+```{r}
+# Graphique combiné : barres + ligne
+ggplot(data_elec_sum, aes(x = annee)) +
+  geom_col(aes(y = nombre_annuel), fill = "forestgreen", alpha = 0.6) +  # barres
+  geom_line(aes(y = nombre_annuel), size = 1.5, color = "darkgreen") +   # ligne
+  geom_point(aes(y = nombre_annuel), size = 3, color = "darkgreen") +    # points sur la ligne
+  scale_x_continuous(breaks = 2010:2019)+
+  theme_minimal(base_size = 14) +
+  labs(
+    title = "Évolution annuelle des immatriculations de voitures électriques (2010–2019)",
+    subtitle = paste0("Parc cumulé en 2019 : ", data_elec_sum$parc_cumule[data_elec_sum$annee == 2019]),
+    x = "Année",
+    y = "Nombre de véhicules immatriculés"
+  ) +
+  theme(
+    plot.title = element_text(face = "bold"),
+    axis.text.x = element_text(vjust = 0.5)
+  )
+```
+
+
+
+# Prévisions jusqu'a 2040
+```{r}
+# -------------------------
+# Projection à partir de 2019
+# -------------------------
+
+# 1. Données observées jusqu'en 2019
+data_obs <- data_elec_sum %>% 
+  filter(annee <= 2019)
+
+# 2. Ajustement du modèle polynomial degré 2
+modele_poly <- lm(nombre_annuel ~ poly(annee, 2), data = data_obs)
+
+# 3. Préparer les années futures
+future_years <- data.frame(annee = 2020:2040)
+
+# 4. Projection
+future_years$projection <- predict(modele_poly, newdata = future_years)
+
+# -------------------------
+# Graphique final
+# -------------------------
+ggplot() +
+  # Courbe observée (en bleu)
+  geom_line(data = data_obs, 
+            aes(x = annee, y = nombre_annuel, color = "Observé", linetype = "Observé"), 
+            size = 1.2) +
+  
+  # Courbe projetée (en rouge + pointillés)
+  geom_line(data = future_years, 
+            aes(x = annee, y = projection, color = "Projection", linetype = "Projection"),
+            size = 1.2) +
+
+  scale_color_manual(
+    name = "Type",
+    values = c("Observé" = "blue", "Projection" = "red")
+  ) +
+  scale_linetype_manual(
+    name = "Type",
+    values = c("Observé" = "solid",  "Projection" = "dashed")
+  ) +
+
+  labs(
+    title = "Évolution des immatriculations électriques",
+    subtitle = "Modèle : régression polynomiale de degré 2 ajustée",
+    x = "Année",
+    y = "Immatriculations électriques"
+  ) +
+  
+  theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(face = "bold", size = 18),
+    legend.position = "top",
+    legend.title = element_text(face = "bold")
+  )
+```
+
+
+##---------------------- 2.Identification et classification des inégalités locales des voitures électriques. ----------------------##
+```{r}
+# ================================================
+# Carte des inégalités locales VE – 2.I.R.5
+# ================================================
+
+library(readxl)
+library(dplyr)
+library(janitor)
+library(tidyr)
+library(sf)
+library(tmap)
+
+# 1. Importation de la feuille 2019
+data <- read_excel("2ir5.xls", sheet = "2019", skip = 3)
+
+# 2. Renommer les colonnes
+colnames(data)[1:15] <- c(
+  "region",           
+  "departement",      
+  "essence_6cv",      
+  "essence_6_7cv",    
+  "essence_8cv_plus", 
+  "elec_essence_6cv", 
+  "elec_essence_6cv_plus",
+  "gazole_6cv",       
+  "gazole_6cv_plus",  
+  "essence_gpl_6cv",  
+  "essence_gpl_6cv_plus", 
+  "electricite",      
+  "gazole_electricite",
+  "autres",           
+  "total"             
+)
+
+# 3. Remplir les valeurs manquantes de 'region'
+data <- tidyr::fill(data, region, .direction = "down")
+
+# 4. Supprimer les lignes totaux / non déterminées
+data <- data %>%
+  filter(!grepl("Total|Toutes|non|dét", departement, ignore.case = TRUE))
+
+# 5. Pivot long : énergie et puissance en colonne unique
+data_long <- data %>%
+  pivot_longer(
+    cols = c(essence_6cv:electricite),
+    names_to = "energie",
+    values_to = "nombre"
+  ) %>%
+  mutate(nombre = as.numeric(nombre))
+
+# 6. Filtrer uniquement véhicules électriques
+data_elec <- data_long %>%
+  filter(grepl("electricite", energie, ignore.case = TRUE),
+         !is.na(nombre))
+
+# 7. Regrouper par département
+ve_by_dept <- data_elec %>%
+  group_by(departement) %>%
+  summarise(nb_ve = sum(nombre), .groups = "drop")
+
+# 8. Lire le shapefile des départements
+fr_dept <- st_read("Departements.shp")
+
+# 9. Joindre les données VE avec le shapefile
+ve_map <- fr_dept %>%
+  left_join(ve_by_dept, by = c("DDEP_L_LIB" = "departement"))
+
+# 10. Supprimer les géométries vides
+ve_map <- ve_map[!st_is_empty(ve_map), ]
+
+ve_map <- st_make_valid(ve_map) # transforme les polygones invalides en géométries valides.
+
+# 11. Limiter la carte à la France métropolitaine
+ve_map <- st_crop(ve_map, xmin = -5.5, xmax = 10, ymin = 41, ymax = 51)
+
+# 12. Créer une catégorie faible/moyen/élevé pour les VE
+ve_map <- ve_map %>%
+  mutate(categorie = cut(nb_ve,
+                         breaks = quantile(nb_ve, probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
+                         labels = c("Faible", "Moyen", "Élevé"),
+                         include.lowest = TRUE))
+
+# 13. Carte choroplèthe centrée sur France métropolitaine
+# tm_shape(ve_map) +
+#   tm_polygons("categorie",
+#               palette = "YlOrRd",
+#               title = "Nombre de VE par département") +
+#   tm_layout(legend.outside = TRUE) +
+#   tm_crs("EPSG:2154") +
+#   tm_view(bbox = st_bbox(ve_map))
+```
+
+# Carte leaflet
+```{r}
+library(leaflet)
+
+# Créer une palette de couleurs pour les catégories
+pal <- colorFactor(palette = "YlOrRd", domain = ve_map$categorie)
+
+# Carte interactive
+leaflet(ve_map) %>%
+  addProviderTiles("CartoDB.Positron") %>%   # fond de carte clair
+  addPolygons(
+    fillColor = ~pal(categorie),
+    weight = 1,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.8,
+    highlight = highlightOptions(
+      weight = 2,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.9,
+      bringToFront = TRUE
+    ),
+    label = ~paste0(DDEP_L_LIB, ": ", nb_ve, " VE"),
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "13px",
+      direction = "auto"
+    )
+  ) %>%
+  addLegend(pal = pal, values = ~categorie, opacity = 0.7, title = "Nombre de VE",
+            position = "bottomright")
+```
