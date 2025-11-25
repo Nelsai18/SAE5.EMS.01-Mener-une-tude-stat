@@ -1,137 +1,195 @@
-##---------------------- 1.Évolution du parc automobile électrique jusqu’à 2040. ----------------------##
 ```{r}
-# Chargement des bibliothèques
 library(readxl)
 library(dplyr)
 library(janitor)
 library(tidyr)
 library(ggplot2)
+```
 
-# 1. Importation du fichier
+
+# ------------------------------------------------------------
+##---------------------- 1.Évolution du parc automobile électrique jusqu’à 2040. ----------------------##
+# ------------------------------------------------------------
+
+
+# Importation + nettoyage des données
+```{r}
 data <- read_excel("2if5.xls", skip = 3)  
+data <- clean_names(data)
 
-# 2. Nettoyage des noms de colonnes
-data <- janitor::clean_names(data)
-
-# 3. Remplir les valeurs manquantes de 'energie'
-data <- tidyr::fill(data, energie, .direction = "down")
-
-# 4. Supprimer les lignes totaux et non déterminées
-data <- data %>%
+data <- fill(data, energie, .direction = "down") %>%
   filter(!grepl("Total|Toutes|non|dét", energie, ignore.case = TRUE),
-         !co2_g_km %in% c("Total", "Non dét."))
-
-# 5. Convertir les colonnes xYYYY en numeric
-data <- data %>%
+         !co2_g_km %in% c("Total", "Non dét.")) %>%
   mutate(across(starts_with("x"), as.numeric))
 
-# 6. Pivot long
+# Format long
 data_long <- data %>%
   pivot_longer(
     cols = starts_with("x"),
     names_to = "annee",
     values_to = "nombre"
   ) %>%
-  mutate(
-    annee = as.numeric(gsub("x", "", annee))
-  )
-
-# 7. Filtrage sur les véhicules électriques et années >= 2010
-data_elec <- data_long %>%
-  filter(grepl("electri", energie, ignore.case = TRUE),
-         annee >= 2010,
-         !is.na(nombre))
-
-# 8. Agrégation par année pour obtenir les immatriculations annuelles
-data_elec_sum <- data_elec %>%
-  group_by(annee) %>%
-  summarise(nombre_annuel = sum(nombre, na.rm = TRUE), .groups = "drop") %>%
-  arrange(annee)
-
-# 9. Calcul du parc cumulatif (pour information / sous-titre)
-data_elec_sum <- data_elec_sum %>%
-  mutate(parc_cumule = cumsum(nombre_annuel))
+  mutate(annee = as.numeric(gsub("x", "", annee)))
 ```
 
 
+# 1. Préparer les catégories d’énergie 
 ```{r}
-# Graphique combiné : barres + ligne
-ggplot(data_elec_sum, aes(x = annee)) +
-  geom_col(aes(y = nombre_annuel), fill = "forestgreen", alpha = 0.6) +  # barres
-  geom_line(aes(y = nombre_annuel), size = 1.5, color = "darkgreen") +   # ligne
-  geom_point(aes(y = nombre_annuel), size = 3, color = "darkgreen") +    # points sur la ligne
-  scale_x_continuous(breaks = 2010:2019)+
-  theme_minimal(base_size = 14) +
+data_grouped <- data_long %>%
+  mutate(
+    categorie = case_when(
+      grepl("^Electricité$", energie, ignore.case = TRUE) ~ "Électrique",
+      grepl("Electricité \\+ Essence|Electricité \\+ Gazole", energie, ignore.case = TRUE) ~ "Hybride rechargeable",
+      grepl("^Essence$", energie, ignore.case = TRUE) ~ "Essence",
+      grepl("^Gazole$", energie, ignore.case = TRUE) ~ "Gazole",
+      grepl("GPL|Gaz Naturel", energie, ignore.case = TRUE) ~ "GPL / Gaz naturel",
+      TRUE ~ "Autres"
+    )
+  ) %>%
+  filter(categorie != "Autres") %>%
+  group_by(annee, categorie) %>%
+  summarise(nombre_annuel = sum(nombre, na.rm = TRUE), .groups = "drop")
+```
+
+
+# 2. Graphique 1 : Électrique + Hybride rechargeable
+```{r}
+data_eh <- data_grouped %>%
+  filter(categorie %in% c("Électrique", "Hybride rechargeable"))
+
+ggplot(data_eh, aes(x = annee, y = nombre_annuel, color = categorie)) +
+  geom_line(size = 1.4) +
+  geom_point(size = 2.5) +
+  scale_color_manual(
+    values = c(
+      "Électrique" = "#0072B2",
+      "Hybride rechargeable" = "#D55E00"
+    ),
+    name = "Type d'énergie"
+  ) +
   labs(
-    title = "Évolution annuelle des immatriculations de voitures électriques (2010–2019)",
-    subtitle = paste0("Parc cumulé en 2019 : ", data_elec_sum$parc_cumule[data_elec_sum$annee == 2019]),
+    title = "Évolution des immatriculations : Électrique vs Hybride rechargeable",
     x = "Année",
     y = "Nombre de véhicules immatriculés"
   ) +
+  theme_minimal(base_size = 15) +
   theme(
-    plot.title = element_text(face = "bold"),
-    axis.text.x = element_text(vjust = 0.5)
-  )
-```
-
-
-
-# Prévisions jusqu'a 2040
-```{r}
-# -------------------------
-# Projection à partir de 2019
-# -------------------------
-
-# 1. Données observées jusqu'en 2019
-data_obs <- data_elec_sum %>% 
-  filter(annee <= 2019)
-
-# 2. Ajustement du modèle polynomial degré 2
-modele_poly <- lm(nombre_annuel ~ poly(annee, 2), data = data_obs)
-
-# 3. Préparer les années futures
-future_years <- data.frame(annee = 2020:2040)
-
-# 4. Projection
-future_years$projection <- predict(modele_poly, newdata = future_years)
-
-# -------------------------
-# Graphique final
-# -------------------------
-ggplot() +
-  # Courbe observée (en bleu)
-  geom_line(data = data_obs, 
-            aes(x = annee, y = nombre_annuel, color = "Observé", linetype = "Observé"), 
-            size = 1.2) +
-  
-  # Courbe projetée (en rouge + pointillés)
-  geom_line(data = future_years, 
-            aes(x = annee, y = projection, color = "Projection", linetype = "Projection"),
-            size = 1.2) +
-
-  scale_color_manual(
-    name = "Type",
-    values = c("Observé" = "blue", "Projection" = "red")
-  ) +
-  scale_linetype_manual(
-    name = "Type",
-    values = c("Observé" = "solid",  "Projection" = "dashed")
-  ) +
-
-  labs(
-    title = "Évolution des immatriculations électriques",
-    subtitle = "Modèle : régression polynomiale de degré 2 ajustée",
-    x = "Année",
-    y = "Immatriculations électriques"
-  ) +
-  
-  theme_minimal(base_size = 14) +
-  theme(
+    legend.position = "bottom",
     plot.title = element_text(face = "bold", size = 18),
-    legend.position = "top",
-    legend.title = element_text(face = "bold")
+    axis.text.x = element_text(angle = 45, hjust = 1)
   )
 ```
+
+
+# 3. Graphique 2 : Essence, Gazole, GPL/Gaz naturel
+```{r}
+data_therm <- data_grouped %>%
+  filter(categorie %in% c("Essence", "Gazole", "GPL / Gaz naturel"))
+
+ggplot(data_therm, aes(x = annee, y = nombre_annuel, color = categorie)) +
+  geom_line(size = 1.4) +
+  geom_point(size = 2.5) +
+  scale_color_manual(
+    values = c(
+      "Essence" = "#009E73",
+      "Gazole" = "#CC79A7",
+      "GPL / Gaz naturel" = "#F0E442"
+    ),
+    name = "Motorisation"
+  ) +
+  labs(
+    title = "Évolution des immatriculations : Essence, Gazole, GPL/Gaz naturel",
+    x = "Année",
+    y = "Nombre de véhicules immatriculés"
+  ) +
+  theme_minimal(base_size = 15) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold", size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+
+# Prévisions Jusqu'à 2040
+
+# Séparer les jeux de données Électrique et Hybride
+```{r}
+# Données électriques
+data_elec_sum <- data_grouped %>%
+  filter(categorie == "Électrique") %>%
+  arrange(annee)
+
+# Données hybrides rechargeables
+data_hybride_sum <- data_grouped %>%
+  filter(categorie == "Hybride rechargeable") %>%
+  arrange(annee)
+```
+
+# Fonction propre pour faire une prévision
+```{r}
+plot_prevision <- function(data_sum, titre) {
+  
+  # 1. Observations jusqu'en 2019
+  data_obs <- data_sum %>% filter(annee <= 2019)
+  
+  # 2. Modèle polynomial degré 2
+  modele_poly <- lm(nombre_annuel ~ poly(annee, 2), data = data_obs)
+  
+  # 3. Années futures
+  future_years <- data.frame(annee = 2020:2040)
+  future_years$projection <- predict(modele_poly, newdata = future_years)
+  
+  # 4. Graphique final
+  ggplot() +
+    geom_line(data = data_obs,
+              aes(x = annee, y = nombre_annuel,
+                  color = "Observé", linetype = "Observé"),
+              size = 1.2) +
+    
+    geom_line(data = future_years,
+              aes(x = annee, y = projection,
+                  color = "Projection", linetype = "Projection"),
+              size = 1.2) +
+    
+    scale_y_continuous(labels = scales::comma)+
+
+    
+    scale_color_manual(
+      name = "Type",
+      values = c("Observé" = "blue", "Projection" = "red")
+    ) +
+    scale_linetype_manual(
+      name = "Type",
+      values = c("Observé" = "solid", "Projection" = "dashed")
+    ) +
+    
+    labs(
+      title = titre,
+      subtitle = "Prévision basée sur une régression polynomiale (degré 2)\nProjection à partir de 2019",
+      x = "Année",
+      y = "Immatriculations"
+    ) +
+    
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(face = "bold", size = 18),
+      legend.position = "top",
+      legend.title = element_text(face = "bold")
+    )
+}
+```
+
+# Générer les deux graphiques
+```{r}
+# Prévision pour les voitures électriques
+plot_prevision(data_elec_sum, "Prévision pour les voitures électriques")
+
+# Prévision pour les hybrides rechargeables
+plot_prevision(data_hybride_sum, "Prévision pour les Hybrides rechargeables")
+```
+
+
 
 
 ##---------------------- 2.Identification et classification des inégalités locales des voitures électriques. ----------------------##
@@ -148,10 +206,10 @@ library(sf)
 library(tmap)
 
 # 1. Importation de la feuille 2019
-data <- read_excel("2ir5.xls", sheet = "2019", skip = 3)
+data2 <- read_excel("2ir5.xls", sheet = "2019", skip = 3)
 
 # 2. Renommer les colonnes
-colnames(data)[1:15] <- c(
+colnames(data2)[1:15] <- c(
   "region",           
   "departement",      
   "essence_6cv",      
@@ -170,14 +228,14 @@ colnames(data)[1:15] <- c(
 )
 
 # 3. Remplir les valeurs manquantes de 'region'
-data <- tidyr::fill(data, region, .direction = "down")
+data2 <- tidyr::fill(data2, region, .direction = "down")
 
 # 4. Supprimer les lignes totaux / non déterminées
-data <- data %>%
+data2 <- data2 %>%
   filter(!grepl("Total|Toutes|non|dét", departement, ignore.case = TRUE))
 
 # 5. Pivot long : énergie et puissance en colonne unique
-data_long <- data %>%
+data_long <- data2 %>%
   pivot_longer(
     cols = c(essence_6cv:electricite),
     names_to = "energie",
@@ -216,15 +274,6 @@ ve_map <- ve_map %>%
                          breaks = quantile(nb_ve, probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
                          labels = c("Faible", "Moyen", "Élevé"),
                          include.lowest = TRUE))
-
-# 13. Carte choroplèthe centrée sur France métropolitaine
-# tm_shape(ve_map) +
-#   tm_polygons("categorie",
-#               palette = "YlOrRd",
-#               title = "Nombre de VE par département") +
-#   tm_layout(legend.outside = TRUE) +
-#   tm_crs("EPSG:2154") +
-#   tm_view(bbox = st_bbox(ve_map))
 ```
 
 # Carte leaflet
@@ -260,4 +309,128 @@ leaflet(ve_map) %>%
   ) %>%
   addLegend(pal = pal, values = ~categorie, opacity = 0.7, title = "Nombre de VE",
             position = "bottomright")
+```
+
+
+
+##---------------------- 3. Autonomie et consommation moyenne d'une voiture électrique. ----------------------##
+
+
+# Les données ne sont pas telechargeables, ce sont des tableaux sur une page web, je dois donc proceder à du web scraping 
+```{r}
+library(rvest)
+library(dplyr)
+library(purrr)
+library(stringr)
+library(janitor)
+
+# 1. Lire la page
+url <- "https://www.fiches-auto.fr/articles-auto/voiture-electrique/s-852-comparatif-des-voitures-electriques.php"
+page <- read_html(url)
+
+# 2. Sélectionner tous les H2
+nodes_h2 <- page %>% html_nodes("h2")
+titles <- nodes_h2 %>% html_text(trim = TRUE)
+
+# 3. Garder uniquement les H2 contenant un prix
+nodes_useful <- nodes_h2[str_detect(titles, "€|euros|[0-9]")]
+
+# 4. Récupérer les tables associées
+tables <- nodes_useful %>% map(~ {
+  # chercher la première table après le H2, peu importe les nœuds intermédiaires
+  next_table <- html_node(.x, xpath = "following::table[1]")
+  
+  # vérifier si la table existe
+  if (!is.na(next_table)) {
+    # convertir en data.frame et nettoyer les noms
+    html_table(next_table, fill = TRUE) %>% clean_names()
+  } else {
+    NULL
+  }
+}) %>% compact()  # supprime les NULL
+
+# 5. Vérifier le résultat
+# length(tables)       # combien de tables ont été récupérées
+# tables[[1]] %>% head()  # afficher les 6 premières lignes de la première table
+
+
+# Nettoyer chaque table : 
+# - supprimer les lignes où x1 est vide (ce sont des lignes d'en-tête répétées)
+# - renommer correctement les colonnes
+cleaned_tables <- tables %>% 
+  map(~ .x %>% 
+        filter(x1 != "") %>% 
+        rename(
+          modele = x1,  # Nom et version du véhicule
+          acceleration = x2, # Temps 0-100 km/h
+          vmax = x3, # Vitesse maximale annoncée
+          coffre = x4, # Volume du coffre
+          batterie = x5, # Capacité de la batterie
+          autonomie = x6 # Autonomie annoncée par le constructeur
+        ))
+
+# Combiner toutes les tables en un seul data.frame
+df_all <- bind_rows(cleaned_tables)
+
+# Vérifier le résultat
+df_all %>% slice(1:10)
+
+# 3. Créer des variables numériques pour l'analyse
+df_all <- df_all %>%
+  mutate(
+    # batterie_kwh : capacité de la batterie en kWh
+    batterie_kwh = as.numeric(str_remove(batterie, "kWh")),  
+    
+    # autonomie_km : autonomie annoncée en kilomètres
+    autonomie_km = as.numeric(str_remove(autonomie, "km")),  
+)
+
+# 4. Vérification des premières lignes
+df_all %>% 
+  select(modele, batterie_kwh, autonomie_km) %>% 
+  slice(1:10)
+```
+# On travaille sur la capacité de la batterie à la place de la consommation ( car on n'a pas les données sur la consommation)
+
+
+# Autonomie moyenne et capacité de batterie moyenne d'une voiture électrique
+```{r}
+df_all %>%
+  summarise(
+    autonomie_moyenne = mean(autonomie_km, na.rm = TRUE),
+    batterie_moyenne = mean(batterie_kwh, na.rm = TRUE)
+  )
+```
+
+
+
+
+# Nuage de points Batterrie vs autonomie
+```{r}
+ggplot(df_all, aes(x = batterie_kwh, y = autonomie_km)) +
+  geom_point(color = "#2c7fb8", alpha = 0.7, size = 3) +
+  labs(
+    title = "Relation entre autonomie et capacité de la batterie",
+    x = "Capacité de la batterie (kWh)",
+    y = "Autonomie annoncée (km)"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+
+# Boxplot par catégorie de batterie
+```{r}
+df_all <- df_all %>%
+  mutate(battery_cat = cut(batterie_kwh, breaks = c(0, 30, 60, 90, 120), 
+                           labels = c("Petite", "Moyenne", "Grande", "Très grande")))
+
+ggplot(df_all, aes(x = battery_cat, y = autonomie_km, fill = battery_cat)) +
+  geom_boxplot() +
+  labs(
+    title = "Autonomie selon la capacité de la batterie",
+    x = "Catégorie de batterie",
+    y = "Autonomie (km)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(legend.position = "none")
 ```
