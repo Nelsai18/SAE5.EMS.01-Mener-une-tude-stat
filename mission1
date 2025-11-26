@@ -1,3 +1,10 @@
+---
+title: "SAE5.EMS.01_pinel_v2"
+author: "SA"
+date: "2025-11-24"
+output: word_document
+---
+
 ```{r}
 library(readxl)
 library(dplyr)
@@ -79,6 +86,25 @@ ggplot(data_eh, aes(x = annee, y = nombre_annuel, color = categorie)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 ```
+Ce graphique montre l’évolution des immatriculations de voitures électriques et hybrides rechargeables depuis le début des années 2000.
+
+- On observe un début très lent pour les deux technologies. De 2000 à 2010, les courbes sont quasiment à zéro. Les véhicules électriques étaient encore rares, chers, et l’infrastructure (bornes, autonomie) était limitée.Les hybrides rechargeables venaient à peine d’être introduits.
+-> Le marché n’existait pratiquement pas.
+
+- À partir de 2010, l’électrique décolle doucement. Entre 2010 et 2015, l’électrique commence à monter progressivement.Les hybrides rechargeables montent aussi mais restent au-dessus des électriques.
+Les raisons sont les suivantes : 
+Les hybrides rassurent (pas de problème d'autonomie).
+L’électrique progresse lentement mais sûrement avec les premières politiques publiques.
+
+- Après 2015, il y'a un changement brutal :
+L’hybride rechargeable explose littéralement, dépassant largement l’électrique.
+L’électrique continue de monter, mais moins vite.
+-> L’hybride rechargeable devient la motorisation "de transition" entre thermique et électrique.
+
+- Depuis 2018/2019, on observe une accélération nette :
+La croissance des deux technologies devient quasi exponentielle, avec l’électrique qui rattrape progressivement et l'hybride qui prend une avance énorme.
+-> On entre dans une phase où l’électromobilité devient une tendance majeure du marché.
+
 
 
 # 3. Graphique 2 : Essence, Gazole, GPL/Gaz naturel
@@ -109,6 +135,28 @@ ggplot(data_therm, aes(x = annee, y = nombre_annuel, color = categorie)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 ```
+Ce graphique montre l’évolution des principales motorisations thermiques.
+C’est très intéressant car il permet de comprendre le contexte dans lequel l’électrique progresse.
+
+- Le gazole passe d’un statut dominant à un déclin structurel :
+De 2000 à 2012, le diesel (gazole) est ultra dominant (près de 1,5 million d’immatriculations par an).
+Après 2012 : effondrement continu de la courbe.
+Les raisons sont : Normes antipollution, Scandale du Dieselgate* (2015), Restriction dans les grandes villes, changement de perception du public
+
+*L'affaire Volkswagen, aussi appelée « dieselgate », est un scandale industriel et sanitaire lié à l'utilisation par le groupe Volkswagen, de 2009 à 2015, de différentes techniques visant à réduire frauduleusement les émissions polluantes de certains de ses moteurs diesel et essence lors des essais d'homologation.
+
+- L’essence : baisse puis remontée spectaculaire
+De 2000 à 2010 : l’essence baisse progressivement, remplacée par le diesel.
+À partir de 2010, et surtout après 2015 : l’essence remonte fortement, jusqu’à repasser au-dessus du diesel. Cela s'explique du fait que le diesel devient impopulaire. L’essence redevient la motorisation "par défaut".
+
+- Le GPL / Gaz naturel est quand à lui très faible tout au long de la période. Cette technologie ne décolle pas en France.
+
+Conclusion des deux graphiques : 
+Les deux graphiques montrent une transition très nette dans les immatriculations de véhicules en France.
+Les motorisations thermiques dominent historiquement, mais le diesel s’effondre depuis 2012 tandis que l’essence reprend de la place.
+En parallèle, l’électrique et surtout l’hybride rechargeable connaissent une croissance exponentielle depuis 2015, portée par les politiques publiques, l’amélioration des technologies et l’évolution des comportements.
+On observe donc une transition progressive mais irréversible vers les motorisations électriques.
+
 
 
 # Prévisions Jusqu'à 2040
@@ -166,7 +214,7 @@ plot_prevision <- function(data_sum, titre) {
     
     labs(
       title = titre,
-      subtitle = "Prévision basée sur une régression polynomiale (degré 2)\nProjection à partir de 2019",
+      subtitle = "Prévision de 2019 à 2040",
       x = "Année",
       y = "Immatriculations"
     ) +
@@ -180,15 +228,19 @@ plot_prevision <- function(data_sum, titre) {
 }
 ```
 
+
 # Générer les deux graphiques
 ```{r}
 # Prévision pour les voitures électriques
-plot_prevision(data_elec_sum, "Prévision pour les voitures électriques")
+plot_prevision(data_elec_sum, "Voitures électriques")
 
 # Prévision pour les hybrides rechargeables
-plot_prevision(data_hybride_sum, "Prévision pour les Hybrides rechargeables")
+plot_prevision(data_hybride_sum, "Hybrides rechargeables")
 ```
-
+Les prévisions sont basées sur une régression polynomiale de degré 2
+appliquée uniquement sur les données observées jusqu’en 2019 puis extrapolée jusqu’en 2040. C’est un modèle simple qui prolonge la dynamique observée juste avant 2020.
+Les deux technologies (électrique et hybride) suivent une même logique de croissance accélérée.
+Mais selon le modèle, les hybrides rechargeables dominent nettement le marché d’ici 2040 avec des immatriculations qui approchent 800 000 par an contre 300000 pour les voitures électriques.
 
 
 
