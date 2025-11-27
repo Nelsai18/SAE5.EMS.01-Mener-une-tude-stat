@@ -18,4 +18,7 @@ A faire ensemble une fois toutes les missions fini :
 - 4. Retour et recommandations 
     a. Difficultés dans le traitement des données 
     b. Pistes pour l’amélioration de l’étude (non-réalisé par manque de temps ou manque de données) 
-- 5. Conclusion avec ouverture. 
+- 5. Conclusion avec ouverture: la capacité de métaux dont on dispose peut_elle permettre d'electrifier toute les voitures, les dangers de la voiture electrique,  
+
+
+
