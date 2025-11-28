@@ -362,10 +362,19 @@ leaflet(ve_map) %>%
   addLegend(pal = pal, values = ~categorie, opacity = 0.7, title = "Nombre de VE",
             position = "bottomright")
 ```
+Carte du nombre de voitures électriques par département :
+
+Cette carte a été construite en associant les données du parc de voitures électriques à un fond cartographique des départements, puis en classant chaque département en trois niveaux (faible, moyen, élevé) selon son nombre de véhicules. Une palette de couleurs graduée a ensuite été appliquée pour visualiser clairement les contrastes territoriaux.
+
+Le graphique met en évidence une répartition très hétérogène des voitures électriques sur le territoire français. Les départements affichant les niveaux les plus élevés se situent principalement dans l’ouest (notamment le long de la façade atlantique) et dans le sud-est, ainsi que dans certains territoires densément peuplés du nord et de l’est. Ces zones correspondent généralement à des régions urbaines, plus dynamiques économiquement, où les infrastructures de recharge sont mieux développées et où la transition énergétique est plus avancée.
+
+À l’inverse, de nombreux départements du centre du pays, ainsi que certains territoires ruraux, se situent dans les niveaux les plus faibles. Cela peut être lié à une densité de population plus faible, à une dépendance persistante aux véhicules thermiques, ou encore à un réseau de bornes de recharge moins dense, ce qui limite l’adoption des voitures électriques.
+
+Globalement, la carte souligne l’importance du contexte territorial : les voitures électriques se diffusent plus rapidement dans les zones urbanisées et bien équipées, tandis que les territoires ruraux et intermédiaires accusent un retard significatif. Cette lecture met en lumière des enjeux forts d’équité territoriale et de planification des infrastructures de recharge pour accompagner une transition homogène.
 
 
 
-##---------------------- 3. Autonomie et consommation moyenne d'une voiture électrique. ----------------------##
+##---------------------- 3. Autonomie et capacité de la batterie moyenne d'une voiture électrique. ----------------------##
 
 
 # Les données ne sont pas telechargeables, ce sont des tableaux sur une page web, je dois donc proceder à du web scraping 
@@ -442,8 +451,6 @@ df_all %>%
   select(modele, batterie_kwh, autonomie_km) %>% 
   slice(1:10)
 ```
-# On travaille sur la capacité de la batterie à la place de la consommation ( car on n'a pas les données sur la consommation)
-
 
 # Autonomie moyenne et capacité de batterie moyenne d'une voiture électrique
 ```{r}
@@ -453,8 +460,6 @@ df_all %>%
     batterie_moyenne = mean(batterie_kwh, na.rm = TRUE)
   )
 ```
-
-
 
 
 # Nuage de points Batterrie vs autonomie
@@ -468,21 +473,10 @@ ggplot(df_all, aes(x = batterie_kwh, y = autonomie_km)) +
   ) +
   theme_minimal(base_size = 14)
 ```
+Autonomie et capacité de la batterie moyenne d’une voiture électrique :
 
+Comme les données de consommation n’étaient pas directement accessibles (présentées sous forme de tableaux non téléchargeables sur une page web), nous avons procédé à un web scraping afin d’extraire automatiquement les caractéristiques techniques des modèles disponibles. Faute de données fiables sur la consommation, l’analyse repose donc sur la capacité de la batterie, variable fortement liée à l’autonomie.
 
-# Boxplot par catégorie de batterie
-```{r}
-df_all <- df_all %>%
-  mutate(battery_cat = cut(batterie_kwh, breaks = c(0, 30, 60, 90, 120), 
-                           labels = c("Petite", "Moyenne", "Grande", "Très grande")))
+Les données collectées permettent d’estimer une autonomie moyenne d’environ 446 km pour une capacité de batterie moyenne de 65 kWh. Le nuage de points montrant la relation entre ces deux variables met en évidence une corrélation clairement positive : plus la capacité de la batterie augmente, plus l’autonomie annoncée est élevée. Cette tendance est cohérente avec la logique technologique des véhicules électriques, où une batterie plus grande permet de stocker davantage d’énergie et donc d’augmenter la distance parcourable.
 
-ggplot(df_all, aes(x = battery_cat, y = autonomie_km, fill = battery_cat)) +
-  geom_boxplot() +
-  labs(
-    title = "Autonomie selon la capacité de la batterie",
-    x = "Catégorie de batterie",
-    y = "Autonomie (km)"
-  ) +
-  theme_minimal(base_size = 14) +
-  theme(legend.position = "none")
-```
+Bien que la dispersion reste notable (certaines voitures offrant une autonomie plus faible que d’autres à capacité équivalente), l’ensemble du nuage illustre une trajectoire ascendante nette. Cela s’explique par des différences d’efficacité énergétique entre constructeurs, de poids du véhicule ou encore de performance des moteurs. Globalement, le graphique confirme que la capacité de la batterie constitue un déterminant majeur de l’autonomie d’un véhicule électrique.
