@@ -1,3 +1,7 @@
+# Mission 3 : Appel de charge au réseau électrique
+
+## Analyse de la consommation d'électricité en France et des filières de production.
+
 ```{r}
 library(readxl)
 
@@ -106,6 +110,7 @@ FP<- FP%>%
   )
 ```
 
+Choix de l'année à représenter
 ```{r}
 library(dplyr)
 
@@ -150,7 +155,9 @@ ggplot(FP_2020, aes(x = Filière, y = Production)) +
   scale_y_continuous(labels = comma)  # <-- affiche les nombres détaillés
 ```
 
-Profiler un pic d’utilisation des bornes de recharge
+
+## Profiler un pic d’utilisation des bornes de recharge
+
 ```{r}
 
 ```
