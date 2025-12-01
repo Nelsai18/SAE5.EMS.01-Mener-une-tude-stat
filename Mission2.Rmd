@@ -268,6 +268,8 @@ ggplot(top_amenageurs, aes(x = nom_amenageur, y = total_pdc)) +
   ) +
   theme_minimal()
 ```
+TESLA a 42%, DRIVECO 12.2%, IONITY 9.7%, Ionity 8.1% (doublon), les autres moins de 4% chacun.
+ça veut dire qu'Une seule entreprise (TESLA) a installé presque la moitié de toutes les bornes. Les deux ou trois suivantes (DRIVECO, IONITY) ont beaucoup moins. Les autres sont minuscules.
 
 #  ANALYSE DES TYPES DE PRISES
 ```{r}
@@ -322,6 +324,7 @@ if (length(colonnes_existantes) > 0) {
   cat("Aucune donnée de type de prise disponible\n")
 }
 ```
+L'analyse de la répartition des types de prises révèle une nette priorité à la recharge en courant alternatif (AC), qui représente 80.7% de l'offre totale (Type 2 et Type EF). Cette dominance indique que l'infrastructure est principalement conçue pour la recharge de destination (lente ou accélérée) dans les lieux de stationnement prolongé (domicile, travail, parkings publics). En parallèle, la recharge rapide en courant continu (DC), essentielle pour les longs trajets, ne constitue que 19.2% de l'offre (Combo CCS et CHAdeMO). De plus, au sein du segment DC, le Combo CCS (16.4%) est clairement le standard dominant, confirmant son adoption européenne au détriment du CHAdeMO (2.8%).
 
 Carte leaflet
 ```{r}
@@ -340,8 +343,7 @@ leaflet(carte_puissance) %>%
   ) %>%
   addLegend(pal = pal_puissance, values = ~categorie_puissance, title = "Puissance")
 ```
-
-
+La France a une infrastructure de recharge fortement concentrée dans les zones urbaines et sur les grands axes, ce qui est typique du développement initial des réseaux de vehicule élèctrique
 ```{r}
 # RÉPARTITION PAR TYPE DE PRISE
 carte_prises <- bornes_clean %>%
@@ -378,6 +380,7 @@ leaflet(carte_amenageurs) %>%
   addLegend(pal = pal_amenageurs, values = ~categorie_amenageur, title = "Aménageurs")
 ```
 -------------------------------------#----------------------------------------------------------
+
 
 
 
