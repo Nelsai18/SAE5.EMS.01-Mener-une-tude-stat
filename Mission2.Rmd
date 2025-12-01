@@ -63,7 +63,7 @@ cat("Points de charge totaux :", sum(bornes_clean$nbre_pdc, na.rm = TRUE), "\n")
 cat("Période :", min(bornes_clean$annee, na.rm = TRUE), "-", max(bornes_clean$annee, na.rm = TRUE), "\n")
 ```
 
-# 2. ÉVOLUTION TEMPORELLE DES POINTS DE RECHARGE 2015-2020
+ ÉVOLUTION TEMPORELLE DES POINTS DE RECHARGE 2015-2020
 
 ```{r}
 
@@ -148,6 +148,9 @@ ggplot(evolution_cumulative, aes(x = annee_mois, y = pdc_cumules)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 ```
+La courbe est strictement croissante : chaque mois, des points de charge s’ajoutent.
+Le réseau de points de charge en France connaît une croissance continue et de plus en plus rapide entre 2015 et 2020.
+2018 marque un changement de rythme, suivi d’une accélération encore plus forte en 2019.
 
 # Évolution annuelle détaillée
 ```{r}
@@ -173,11 +176,15 @@ ggplot(evolution_annuelle, aes(x = factor(annee), y = pdc_annuels)) +
   ) +
   theme_minimal()
 ```
+Le déploiement augmente fortement entre 2015 et 2017.
+En 2018, il y a une baisse nette par rapport à 2017.
+2019 est l’année avec le plus grand nombre d’installations.
+2020 est la deuxième meilleure année, légèrement en dessous de 2019 mais bien au-dessus des années 2015–2018.Le graphique montre une tendance globale à la hausse, malgré une baisse ponctuelle en 2018.
 
 #  ANALYSE PAR TYPE DE PUISSANCE
 
 ```{r}
-# 3.1 Répartition finale en 2020
+#  Répartition finale en 2020
 repartition_2020 <- bornes_clean %>%
   filter(annee == 2020) %>%
   group_by(categorie_puissance) %>%
@@ -204,6 +211,8 @@ ggplot(repartition_2020, aes(x = fct_reorder(categorie_puissance, pourcentage),
   theme_minimal() +
   theme(legend.position = "none")
 ```
+En 2020 : 39.1% Accélérée, 33.4% Très Rapide, 13.4% Rapide, 8.7% Normale, 1.5% Lente, 4% non renseignée.Cela veut dire que Presque 3/4 du parc (72%) c'est des bornes puissantes (accélérée + très rapide). Les bornes lentes et normales, c'est presque rien (1.5% + 8.7% = 10%).
+d'ou Le parc 2020 est principalement constitué de bornes qui chargent vite.
 
 #  Évolution de la répartition par puissance
 ```{r}
@@ -226,8 +235,10 @@ ggplot(evolution_puissance, aes(x = annee, y = total_pdc, fill = categorie_puiss
   ) +
   theme_minimal()
 ```
+Au début (2015), les zones basses et moyennes dominent (lent, normal). À partir de 2017-2018, les zones hautes (rapide, très rapide, accélérée) commencent à grandir. En 2020, ce sont elles qui dominent.
+cela montre que Le parc change de composition. Au début, il y avait surtout des petites bornes. À la fin, il y a surtout des grosses bornes. Cette transformation se voit clairement entre 2017 et 2020.
 
-# 4. ANALYSE DES AMÉNAGEURS
+#  ANALYSE DES AMÉNAGEURS
 ```{r}
 #  Top 10 des aménageurs
 top_amenageurs <- bornes_clean %>%
@@ -258,7 +269,7 @@ ggplot(top_amenageurs, aes(x = nom_amenageur, y = total_pdc)) +
   theme_minimal()
 ```
 
-# 5. ANALYSE DES TYPES DE PRISES
+#  ANALYSE DES TYPES DE PRISES
 ```{r}
 # Vérification des colonnes disponibles
 colonnes_prises <- c("prise_type_ef", "prise_type_chademo", "prise_type_combo_ccs", 
@@ -367,6 +378,7 @@ leaflet(carte_amenageurs) %>%
   addLegend(pal = pal_amenageurs, values = ~categorie_amenageur, title = "Aménageurs")
 ```
 -------------------------------------#----------------------------------------------------------
+
 
 
 
