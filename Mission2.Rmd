@@ -5,345 +5,210 @@ date: "2025-11-3"
 output: html_document
 ---
 # ANALYSE DU DÉPLOIEMENT DE L'INFRASTRUCTURE DE RECHARGE (IRVE)
-```{r}
-# Charger les bibliothèques nécessaires
 library(tidyverse)
 library(lubridate)
 library(scales)
 library(leaflet)
 library(RColorBrewer)
 library(viridis)
+```
 
-# 1. IMPORTATION ET NETTOYAGE DES DONNÉES
-
-# Importation du fichier
-bornes <- read_csv("C:/Users/ELEVEN/Documents/doccc/consolidation-etalab-schema-irve-statique-v-2.3.1-20251116.csv")
+```{r}
+bornes <- read_csv("U:/Documents/BUT3/SAE_mener_une etude_stat/consolidation-etalab-schema-irve-statique-v-2.3.1-20251116.csv")
 SEPARATEUR_CSV <- ";"                           
 DECIMAL_CSV <- ","
-```
 
-# Nettoyage et préparation approfondie
+```
+#Nettoyage et préparation
 ```{r}
 bornes_clean <- bornes %>%
-  # Normalisation des coordonnées et formats
-  mutate(
-    consolidated_latitude = as.numeric(str_replace_all(consolidated_latitude, ",", ".")),
-    consolidated_longitude = as.numeric(str_replace_all(consolidated_longitude, ",", ".")),
-    date_mise_en_service = as.Date(date_mise_en_service)
-  ) %>%
-  
-  # Création des variables analytiques
-  mutate(
-    annee = year(date_mise_en_service),
-    annee_mois = floor_date(date_mise_en_service, "month"),
-    trimestre = paste0(year(date_mise_en_service), "-T", quarter(date_mise_en_service)),
-    
-    # Classification détaillée de la puissance
-    categorie_puissance = case_when(
-      puissance_nominale >= 150 ~ "Très Rapide (≥ 150 kW)",
-      puissance_nominale >= 50 ~ "Rapide (50-149 kW)",
-      puissance_nominale >= 22 ~ "Accélérée (22-49 kW)",
-      puissance_nominale >= 7 ~ "Normale (7-21 kW)",
-      puissance_nominale > 0 ~ "Lente (< 7 kW)",
-      TRUE ~ "non renseignée"
-    )
-  ) %>%
-  
-  # Filtrage des données valides pour 2015-2020
-  filter(
-    annee >= 2015 & annee <= 2020,
-    nbre_pdc > 0,
-    !is.na(puissance_nominale),
-    !is.na(consolidated_latitude) & !is.na(consolidated_longitude)
-  )
+mutate(
+consolidated_latitude = as.numeric(str_replace_all(consolidated_latitude, "," , ".")),
+consolidated_longitude = as.numeric(str_replace_all(consolidated_longitude, "," , ".")),
+date_mise_en_service = as.Date(date_mise_en_service),
+annee = year(date_mise_en_service),
+annee_mois = floor_date(date_mise_en_service, "month"),
+trimestre = paste0(year(date_mise_en_service), "-T", quarter(date_mise_en_service)),
+categorie_puissance = case_when(
+puissance_nominale >= 150 ~ "Très Rapide (≥150 kW)",
+puissance_nominale >= 50  ~ "Rapide (50-149 kW)",
+puissance_nominale >= 22  ~ "Accélérée (22-49 kW)",
+puissance_nominale >= 7   ~ "Normale (7-21 kW)",
+puissance_nominale > 0    ~ "Lente (<7 kW)",
+TRUE ~ "non renseignée"
+)
+) %>%
+filter(
+annee >= 2015 & annee <= 2020,
+nbre_pdc > 0,
+!is.na(puissance_nominale),
+!is.na(consolidated_latitude),
+!is.na(consolidated_longitude)
+)
 
-cat("DONNÉES NETTOYÉES \n")
-cat("Bornes analysées :", nrow(bornes_clean), "\n")
-cat("Points de charge totaux :", sum(bornes_clean$nbre_pdc, na.rm = TRUE), "\n")
-cat("Période :", min(bornes_clean$annee, na.rm = TRUE), "-", max(bornes_clean$annee, na.rm = TRUE), "\n")
 ```
 
- ÉVOLUTION TEMPORELLE DES POINTS DE RECHARGE 2015-2020
-
+#Évolution cumulative
 ```{r}
-
-# Évolution cumulative mensuelle 
 evolution_cumulative <- bornes_clean %>%
-  arrange(date_mise_en_service) %>%
-  group_by(annee_mois) %>%
-  summarise(
-    pdc_mensuels = sum(nbre_pdc, na.rm = TRUE)
-    # Suppression de la colonne stations_mensuelles qui causait l'erreur
-  ) %>%
-  ungroup() %>%
-  mutate(
-    pdc_cumules = cumsum(pdc_mensuels)
-  )
-
-# Alternative pour compter les stations uniques
-# Vérification des colones qui identifient les stations
-if ("id_station_itinerance" %in% colnames(bornes_clean)) {
-  evolution_cumulative <- bornes_clean %>%
-    arrange(date_mise_en_service) %>%
-    group_by(annee_mois) %>%
-    summarise(
-      pdc_mensuels = sum(nbre_pdc, na.rm = TRUE),
-      stations_mensuelles = n_distinct(id_station_itinerance)  # Colonne standard
-    ) %>%
-    ungroup() %>%
-    mutate(
-      pdc_cumules = cumsum(pdc_mensuels),
-      stations_cumulees = cumsum(stations_mensuelles)
-    )
-} else if ("id_station" %in% colnames(bornes_clean)) {
-  evolution_cumulative <- bornes_clean %>%
-    arrange(date_mise_en_service) %>%
-    group_by(annee_mois) %>%
-    summarise(
-      pdc_mensuels = sum(nbre_pdc, na.rm = TRUE),
-      stations_mensuelles = n_distinct(id_station)  # Autre nom possible
-    ) %>%
-    ungroup() %>%
-    mutate(
-      pdc_cumules = cumsum(pdc_mensuels),
-      stations_cumulees = cumsum(stations_mensuelles)
-    )
-} else {
-  # Si aucune colonne station n'est trouvée, on utilise seulement les PDC
-  evolution_cumulative <- bornes_clean %>%
-    arrange(date_mise_en_service) %>%
-    group_by(annee_mois) %>%
-    summarise(
-      pdc_mensuels = sum(nbre_pdc, na.rm = TRUE)
-    ) %>%
-    ungroup() %>%
-    mutate(
-      pdc_cumules = cumsum(pdc_mensuels)
-    )
-}
+arrange(date_mise_en_service) %>%
+group_by(annee_mois) %>%
+summarise(
+pdc_mensuels = sum(nbre_pdc, na.rm = TRUE),
+stations_mensuelles = n_distinct(id_station_itinerance)
+) %>%
+ungroup() %>%
+mutate(
+pdc_cumules = cumsum(pdc_mensuels),
+stations_cumulees = cumsum(stations_mensuelles)
+)
 
 ```
-
-# Graphique d'évolution cumulative
+#visualisation
 ```{r}
-ggplot(evolution_cumulative, aes(x = annee_mois, y = pdc_cumules)) +
-  geom_line(color = "#2E86AB", linewidth = 1.2) +
-  geom_point(data = ~filter(., annee_mois == max(annee_mois)), 
-             color = "#E74C3C", size = 3) +
-  geom_text(data = ~filter(., annee_mois == max(annee_mois)),
-            aes(label = paste0("2020: ", comma(pdc_cumules), " PDC")),
-            vjust = -1, hjust = 0.5, size = 5, fontface = "bold", color = "#E74C3C") +
-  scale_y_continuous(labels = comma_format()) +
-  scale_x_date(date_breaks = "1 year", date_labels = "%Y", 
-               limits = c(as.Date("2015-01-01"), as.Date("2020-12-31"))) +
-  labs(
-    title = "Évolution Cumulative des Points de Charge en France (2015-2020)",
-    subtitle = "Croissance du réseau IRVE public",
-    x = "Date de mise en service",
-    y = "Nombre cumulé de points de charge"
-  ) +
-  theme_minimal() +
-  theme(
-    plot.title = element_text(face = "bold", size = 14),
-    axis.text.x = element_text(angle = 45, hjust = 1)
-  )
-```
-La courbe est strictement croissante : chaque mois, des points de charge s’ajoutent.
-Le réseau de points de charge en France connaît une croissance continue et de plus en plus rapide entre 2015 et 2020.
-2018 marque un changement de rythme, suivi d’une accélération encore plus forte en 2019.
+ggplot(evolution_cumulative, aes(annee_mois, pdc_cumules)) +
+geom_line(color = "#2E86AB", linewidth = 1.2) +
+geom_point(data = subset(evolution_cumulative, annee_mois == max(annee_mois)),
+color = "#E74C3C", size = 3) +
+geom_text(
+data = subset(evolution_cumulative, annee_mois == max(annee_mois)),
+aes(label = paste0("2020: ", comma(pdc_cumules), " PDC")),
+vjust = -1, size = 5, fontface = "bold", color = "#E74C3C"
+) +
+scale_y_continuous(labels = comma_format()) +
+scale_x_date(date_breaks = "1 year", date_labels = "%Y",
+limits = c(as.Date("2015-01-01"), as.Date("2020-12-31"))) +
+labs(
+title = "Évolution cumulative des points de charge (2015–2020)",
+x = "Année", y = "PDC cumulés"
+) +
+theme_minimal()
 
-# Évolution annuelle détaillée
+```
+
+#Évolution annuelle
 ```{r}
 evolution_annuelle <- bornes_clean %>%
-  group_by(annee) %>%
-  summarise(
-    pdc_annuels = sum(nbre_pdc, na.rm = TRUE)
-  ) %>%
-  mutate(
-    croissance_pct = (pdc_annuels / lag(pdc_annuels) - 1) * 100
-  )
+group_by(annee) %>%
+summarise(pdc_annuels = sum(nbre_pdc)) %>%
+mutate(croissance_pct = (pdc_annuels / lag(pdc_annuels) - 1) * 100)
 
-ggplot(evolution_annuelle, aes(x = factor(annee), y = pdc_annuels)) +
-  geom_col(fill = "#3498DB", alpha = 0.8) +
-  geom_text(aes(label = comma(pdc_annuels)), vjust = -0.5, size = 4, fontface = "bold") +
-  geom_line(aes(group = 1, y = pdc_annuels), color = "#E74C3C", linewidth = 1, linetype = "dashed") +
-  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.1))) +
-  labs(
-    title = "Déploiement Annuel des Points de Charge (2015-2020)",
-    subtitle = "Croissance annuelle du réseau public",
-    x = "Année",
-    y = "Nombre de points de charge installés"
-  ) +
-  theme_minimal()
+ggplot(evolution_annuelle, aes(factor(annee), pdc_annuels)) +
+geom_col(fill = "#3498DB", alpha = 0.8) +
+geom_text(aes(label = comma(pdc_annuels)), vjust = -0.5) +
+geom_line(aes(y = pdc_annuels, group = 1),
+color = "#E74C3C", linewidth = 1, linetype = "dashed") +
+scale_y_continuous(labels = comma_format()) +
+labs(
+title = "Déploiement annuel des points de charge (2015–2020)",
+x = "Année", y = "Nombre de PDC"
+) +
+theme_minimal()
+
 ```
-Le déploiement augmente fortement entre 2015 et 2017.
-En 2018, il y a une baisse nette par rapport à 2017.
-2019 est l’année avec le plus grand nombre d’installations.
-2020 est la deuxième meilleure année, légèrement en dessous de 2019 mais bien au-dessus des années 2015–2018.Le graphique montre une tendance globale à la hausse, malgré une baisse ponctuelle en 2018.
-
-#  ANALYSE PAR TYPE DE PUISSANCE
+#Répartition des puissances (2020)
 
 ```{r}
-#  Répartition finale en 2020
 repartition_2020 <- bornes_clean %>%
-  filter(annee == 2020) %>%
-  group_by(categorie_puissance) %>%
-  summarise(total_pdc = sum(nbre_pdc, na.rm = TRUE)) %>%
-  ungroup() %>%
-  mutate(
-    pourcentage = total_pdc / sum(total_pdc) * 100,
-    label = paste0(round(pourcentage, 1), "%")
-  )
+filter(annee == 2020) %>%
+group_by(categorie_puissance) %>%
+summarise(total_pdc = sum(nbre_pdc)) %>%
+mutate(
+pourcentage = total_pdc / sum(total_pdc) * 100,
+label = paste0(round(pourcentage, 1), "%")
+)
 
-ggplot(repartition_2020, aes(x = fct_reorder(categorie_puissance, pourcentage), 
-                            y = pourcentage, fill = categorie_puissance)) +
-  geom_col() +
-  geom_text(aes(label = label), hjust = -0.1, size = 4) +
-  scale_fill_brewer(palette = "Set2") +
-  scale_y_continuous(limits = c(0, 60)) +
-  coord_flip() +
-  labs(
-    title = "Répartition des Points de Charge par Puissance - 2020",
-    subtitle = "Structure du réseau public français",
-    x = "Catégorie de puissance",
-    y = "Part du parc total (%)"
-  ) +
-  theme_minimal() +
-  theme(legend.position = "none")
+ggplot(repartition_2020, aes(fct_reorder(categorie_puissance, pourcentage),
+pourcentage, fill = categorie_puissance)) +
+geom_col() +
+geom_text(aes(label = label), hjust = -0.1) +
+coord_flip() +
+scale_fill_brewer(palette = "Set2") +
+labs(
+title = "Répartition des PDC par puissance – 2020",
+x = "Catégorie", y = "Pourcentage"
+) +
+theme_minimal() +
+theme(legend.position = "none")
+
 ```
-En 2020 : 39.1% Accélérée, 33.4% Très Rapide, 13.4% Rapide, 8.7% Normale, 1.5% Lente, 4% non renseignée.Cela veut dire que Presque 3/4 du parc (72%) c'est des bornes puissantes (accélérée + très rapide). Les bornes lentes et normales, c'est presque rien (1.5% + 8.7% = 10%).
-d'ou Le parc 2020 est principalement constitué de bornes qui chargent vite.
 
-#  Évolution de la répartition par puissance
+#Évolution par puissance
 ```{r}
 evolution_puissance <- bornes_clean %>%
-  group_by(annee, categorie_puissance) %>%
-  summarise(total_pdc = sum(nbre_pdc, na.rm = TRUE)) %>%
-  ungroup()
+group_by(annee, categorie_puissance) %>%
+summarise(total_pdc = sum(nbre_pdc))
 
-ggplot(evolution_puissance, aes(x = annee, y = total_pdc, fill = categorie_puissance)) +
-  geom_area(alpha = 0.8) +
-  scale_fill_brewer(palette = "Set2") +
-  scale_y_continuous(labels = comma_format()) +
-  scale_x_continuous(breaks = 2015:2020) +
-  labs(
-    title = "Évolution de la Composition du Parc par Type de Puissance (2015-2020)",
-    subtitle = "Diversification et modernisation du réseau",
-    x = "Année",
-    y = "Nombre de points de charge installés",
-    fill = "Catégorie de puissance"
-  ) +
-  theme_minimal()
+ggplot(evolution_puissance, aes(annee, total_pdc, fill = categorie_puissance)) +
+geom_area(alpha = 0.8) +
+scale_fill_brewer(palette = "Set2") +
+labs(
+title = "Évolution du parc par type de puissance (2015–2020)",
+x = "Année", y = "PDC"
+) +
+theme_minimal()
+
 ```
-Au début (2015), les zones basses et moyennes dominent (lent, normal). À partir de 2017-2018, les zones hautes (rapide, très rapide, accélérée) commencent à grandir. En 2020, ce sont elles qui dominent.
-cela montre que Le parc change de composition. Au début, il y avait surtout des petites bornes. À la fin, il y a surtout des grosses bornes. Cette transformation se voit clairement entre 2017 et 2020.
-
-#  ANALYSE DES AMÉNAGEURS
+#Aménageurs
 ```{r}
-#  Top 10 des aménageurs
 top_amenageurs <- bornes_clean %>%
-  group_by(nom_amenageur) %>%
-  summarise(
-    total_pdc = sum(nbre_pdc, na.rm = TRUE)
-  ) %>%
-  ungroup() %>%
-  arrange(desc(total_pdc)) %>%
-  head(10) %>%
-  mutate(
-    part_marche = total_pdc / sum(bornes_clean$nbre_pdc) * 100,
-    nom_amenageur = fct_reorder(nom_amenageur, total_pdc)
-  )
+count(nom_amenageur, sort = TRUE) %>%
+head(10) %>%
+mutate(nom_amenageur = fct_reorder(nom_amenageur, n))
 
-ggplot(top_amenageurs, aes(x = nom_amenageur, y = total_pdc)) +
-  geom_col(fill = "#27AE60", alpha = 0.8) +
-  geom_text(aes(label = paste0(round(part_marche, 1), "%")), 
-            hjust = -0.1, size = 3.5, fontface = "bold") +
-  scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.15))) +
-  coord_flip() +
-  labs(
-    title = "Top 10 des Aménageurs de Bornes de Recharge (2015-2020)",
-    subtitle = "Part de marché dans le déploiement du réseau",
-    x = "Aménageur",
-    y = "Nombre total de points de charge"
-  ) +
-  theme_minimal()
+ggplot(top_amenageurs, aes(nom_amenageur, n)) +
+geom_col(fill = "#27AE60", alpha = 0.8) +
+coord_flip() +
+labs(
+title = "Top 10 des aménageurs (2015–2020)",
+x = "Aménageur", y = "Nombre de PDC"
+) +
+theme_minimal()
+
 ```
-TESLA a 42%, DRIVECO 12.2%, IONITY 9.7%, Ionity 8.1% (doublon), les autres moins de 4% chacun.
-ça veut dire qu'Une seule entreprise (TESLA) a installé presque la moitié de toutes les bornes. Les deux ou trois suivantes (DRIVECO, IONITY) ont beaucoup moins. Les autres sont minuscules.
 
-#  ANALYSE DES TYPES DE PRISES
+#Carte – Répartition par puissance
 ```{r}
-# Vérification des colonnes disponibles
-colonnes_prises <- c("prise_type_ef", "prise_type_chademo", "prise_type_combo_ccs", 
-                     "prise_type_2", "prise_type_3")
-colonnes_existantes <- colonnes_prises[colonnes_prises %in% colnames(bornes_clean)]
-
-if (length(colonnes_existantes) > 0) {
-  # Analyse simple et directe
-  resultats_prises <- data.frame()
-  
-  for (col in colonnes_existantes) {
-    nb_true <- sum(bornes_clean[[col]] == TRUE | bornes_clean[[col]] == "true" | bornes_clean[[col]] == 1, na.rm = TRUE)
-    
-    if (nb_true > 0) {
-      nom_lisible <- case_when(
-        col == "prise_type_ef" ~ "Type EF",
-        col == "prise_type_chademo" ~ "CHAdeMO",
-        col == "prise_type_combo_ccs" ~ "Combo CCS", 
-        col == "prise_type_2" ~ "Type 2",
-        col == "prise_type_3" ~ "Type 3",
-        TRUE ~ col
-      )
-      
-      resultats_prises <- rbind(resultats_prises, 
-                               data.frame(type_prise = nom_lisible, nombre = nb_true))
-    }
-  }
-  
-  if (nrow(resultats_prises) > 0) {
-    resultats_prises <- resultats_prises %>%
-      mutate(
-        pourcentage = nombre / sum(nombre) * 100,
-        label = paste0(round(pourcentage, 1), "%")
-      )
-    
-    ggplot(resultats_prises, aes(x = reorder(type_prise, nombre), y = nombre, fill = type_prise)) +
-      geom_col() +
-      geom_text(aes(label = label), hjust = -0.1, size = 4) +
-      scale_y_continuous(labels = comma_format(), expand = expansion(mult = c(0, 0.1))) +
-      coord_flip() +
-      labs(
-        title = "Répartition des Types de Prise",
-        x = "Type de prise",
-        y = "Nombre de points de charge"
-      ) +
-      theme_minimal() +
-      theme(legend.position = "none")
-  }
-} else {
-  cat("Aucune donnée de type de prise disponible\n")
-}
-```
-L'analyse de la répartition des types de prises révèle une nette priorité à la recharge en courant alternatif (AC), qui représente 80.7% de l'offre totale (Type 2 et Type EF). Cette dominance indique que l'infrastructure est principalement conçue pour la recharge de destination (lente ou accélérée) dans les lieux de stationnement prolongé (domicile, travail, parkings publics). En parallèle, la recharge rapide en courant continu (DC), essentielle pour les longs trajets, ne constitue que 19.2% de l'offre (Combo CCS et CHAdeMO). De plus, au sein du segment DC, le Combo CCS (16.4%) est clairement le standard dominant, confirmant son adoption européenne au détriment du CHAdeMO (2.8%).
-
-Carte leaflet
-```{r}
-# RÉPARTITION PAR PUISSANCE
-library(leaflet)
 carte_puissance <- bornes_clean %>%
-  filter(annee == 2020) %>%
-  sample_n(min(1000, nrow(.)))
+filter(annee == 2020) %>%
+sample_n(min(1000, nrow(.)))
+
 pal_puissance <- colorFactor("blue", domain = carte_puissance$categorie_puissance)
+
 leaflet(carte_puissance) %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addCircleMarkers(
-    lng = ~consolidated_longitude, lat = ~consolidated_latitude, radius = 5,
-    color = ~pal_puissance(categorie_puissance), fillOpacity = 0.8, stroke = FALSE,
-    popup = ~paste0("<b>", nom_amenageur, "</b><br>PDC: ", nbre_pdc, "<br>Puissance: ", puissance_nominale, " kW")
-  ) %>%
-  addLegend(pal = pal_puissance, values = ~categorie_puissance, title = "Puissance")
+addProviderTiles("CartoDB.Positron") %>%
+addCircleMarkers(
+lng = ~consolidated_longitude, lat = ~consolidated_latitude,
+radius = 5, fillOpacity = 0.8, stroke = FALSE,
+color = ~pal_puissance(categorie_puissance)
+) %>%
+addLegend(pal = pal_puissance, values = ~categorie_puissance, title = "Puissance")
+
 ```
-La France a une infrastructure de recharge fortement concentrée dans les zones urbaines et sur les grands axes, ce qui est typique du développement initial des réseaux de vehicule élèctrique
+
+#Carte – Aménageurs
+```{r}
+top_amg <- bornes_clean %>% count(nom_amenageur, sort = TRUE) %>% head(5) %>% pull(nom_amenageur)
+
+carte_amg <- bornes_clean %>%
+filter(annee == 2020) %>%
+sample_n(min(1000, nrow(.))) %>%
+mutate(categorie_amenageur = ifelse(nom_amenageur %in% top_amg, nom_amenageur, "Autres"))
+
+pal_amg <- colorFactor("orange", domain = carte_amg$categorie_amenageur)
+
+leaflet(carte_amg) %>%
+addProviderTiles("CartoDB.Positron") %>%
+addCircleMarkers(
+lng = ~consolidated_longitude, lat = ~consolidated_latitude,
+radius = 5, fillOpacity = 0.8, stroke = FALSE,
+color = ~pal_amg(categorie_amenageur)
+) %>%
+addLegend(pal = pal_amg, values = ~categorie_amenageur, title = "Aménageurs")
+
+```
+
+
 ```{r}
 # RÉPARTITION PAR TYPE DE PRISE
 carte_prises <- bornes_clean %>%
@@ -361,25 +226,8 @@ leaflet(carte_prises) %>%
   addLegend(pal = pal_prises, values = ~type_prise, title = "Type de Prise")
 ```
 
-
-```{r}
-# RÉPARTITION PAR AMÉNAGEUR
-top_amenageurs <- bornes_clean %>% count(nom_amenageur, sort = TRUE) %>% head(5) %>% pull(nom_amenageur)
-carte_amenageurs <- bornes_clean %>%
-  filter(annee == 2020) %>%
-  sample_n(min(1000, nrow(.))) %>%
-  mutate(categorie_amenageur = ifelse(nom_amenageur %in% top_amenageurs, nom_amenageur, "Autres"))
-pal_amenageurs <- colorFactor("orange", domain = carte_amenageurs$categorie_amenageur)
-leaflet(carte_amenageurs) %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addCircleMarkers(
-    lng = ~consolidated_longitude, lat = ~consolidated_latitude, radius = 5,
-    color = ~pal_amenageurs(categorie_amenageur), fillOpacity = 0.8, stroke = FALSE,
-    popup = ~paste0("<b>", nom_amenageur, "</b><br>PDC: ", nbre_pdc)
-  ) %>%
-  addLegend(pal = pal_amenageurs, values = ~categorie_amenageur, title = "Aménageurs")
-```
 -------------------------------------#----------------------------------------------------------
+
 
 
 
