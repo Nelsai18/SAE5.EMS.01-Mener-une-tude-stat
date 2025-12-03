@@ -1,0 +1,1263 @@
+---
+output:
+  word_document: default
+---
+---
+title: "SAE5.EMS.01 – MENER UNE ÉTUDE STATISTIQUE DANS UN DOMAINE D’APPLICATION\n
+         
+         2040 CAP DES 100% DE VOITURES ELECTRIQUES"
+author: "Groupe :Fortunato Grace, Ahamada Saïnel, Zarafa Nassur Boinaheri, Leo Pignol"
+date: "Année universitaire : 2024–2025"
+output:
+  word_document:
+    reference_docx: "U:/Documents/BUT3/SAE 501 Mener une etude stat/StylesPourWord.docx"
+    toc: true
+    toc_depth: 3
+    number_sections: false
+    fig_caption: true
+---
+
+|  |  |
+|:--|--:|
+| ![](U:/Documents/BUT3/IUT-Logo2-Carcassonne-T1.png){width=150px} | ![](U:/Documents/BUT3/Logo SD - Carcassonne.png){width=150px} |
+
+|                                                                               |
+|:-----------------------------------------------------------------------------:|                                                       
+| **Enseignant référent :** |
+| M. Sébastien Pinel      |
+---
+\newpage
+
+\newpage
+# Résumé
+
+\newpage
+#Table des matières
+
+```{=openxml}
+<w:p>
+  <w:r>
+    <w:fldChar w:fldCharType="begin"/>
+    <w:instrText xml:space="preserve"> TOC \o "1-3" \h \z \u </w:instrText>
+    <w:fldChar w:fldCharType="separate"/>
+    <w:updateFields w:val="true"/>
+    <w:fldChar w:fldCharType="end"/>
+  </w:r>
+</w:p>
+
+```
+
+
+\newpage
+**Table des figures**
+
+**Table des abréviations**
+
+\newpage
+
+```{r}
+chemin <-"U:/Documents/BUT3/SAE 501 Mener une etude stat"
+setwd(chemin)
+getwd()
+```
+
+```{r}
+library(readxl)
+library(dplyr)
+library(janitor)
+library(tidyr)
+library(ggplot2)
+```
+
+
+# Mission1
+##---------------------- 1.Évolution du parc automobile électrique jusqu’à 2040. ----------------------##
+
+
+
+# Importation + nettoyage des données
+```{r}
+data <- read_excel("2if5.xls", skip = 3)  
+data <- clean_names(data)
+
+data <- fill(data, energie, .direction = "down") %>%
+  filter(!grepl("Total|Toutes|non|dét", energie, ignore.case = TRUE),
+         !co2_g_km %in% c("Total", "Non dét.")) %>%
+  mutate(across(starts_with("x"), as.numeric))
+
+# Format long
+data_long <- data %>%
+  pivot_longer(
+    cols = starts_with("x"),
+    names_to = "annee",
+    values_to = "nombre"
+  ) %>%
+  mutate(annee = as.numeric(gsub("x", "", annee)))
+```
+
+
+### 1. Préparer les catégories d’énergie 
+```{r}
+data_grouped <- data_long %>%
+  mutate(
+    categorie = case_when(
+      grepl("^Electricité$", energie, ignore.case = TRUE) ~ "Électrique",
+      grepl("Electricité \\+ Essence|Electricité \\+ Gazole", energie, ignore.case = TRUE) ~ "Hybride rechargeable",
+      grepl("^Essence$", energie, ignore.case = TRUE) ~ "Essence",
+      grepl("^Gazole$", energie, ignore.case = TRUE) ~ "Gazole",
+      grepl("GPL|Gaz Naturel", energie, ignore.case = TRUE) ~ "GPL / Gaz naturel",
+      TRUE ~ "Autres"
+    )
+  ) %>%
+  filter(categorie != "Autres") %>%
+  group_by(annee, categorie) %>%
+  summarise(nombre_annuel = sum(nombre, na.rm = TRUE), .groups = "drop")
+```
+
+
+### 2. Graphique 1 : Électrique + Hybride rechargeable
+```{r}
+data_eh <- data_grouped %>%
+  filter(categorie %in% c("Électrique", "Hybride rechargeable"))
+
+ggplot(data_eh, aes(x = annee, y = nombre_annuel, color = categorie)) +
+  geom_line(size = 1.4) +
+  geom_point(size = 2.5) +
+  scale_color_manual(
+    values = c(
+      "Électrique" = "#0072B2",
+      "Hybride rechargeable" = "#D55E00"
+    ),
+    name = "Type d'énergie"
+  ) +
+  labs(
+    title = "Évolution des immatriculations : Électrique vs Hybride rechargeable",
+    x = "Année",
+    y = "Nombre de véhicules immatriculés"
+  ) +
+  theme_minimal(base_size = 15) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold", size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+
+
+
+### 3. Graphique 2 : Essence, Gazole, GPL/Gaz naturel
+```{r}
+data_therm <- data_grouped %>%
+  filter(categorie %in% c("Essence", "Gazole", "GPL / Gaz naturel"))
+
+ggplot(data_therm, aes(x = annee, y = nombre_annuel, color = categorie)) +
+  geom_line(size = 1.4) +
+  geom_point(size = 2.5) +
+  scale_color_manual(
+    values = c(
+      "Essence" = "#009E73",
+      "Gazole" = "#CC79A7",
+      "GPL / Gaz naturel" = "#F0E442"
+    ),
+    name = "Motorisation"
+  ) +
+  labs(
+    title = "Évolution des immatriculations : Essence, Gazole, GPL/Gaz naturel",
+    x = "Année",
+    y = "Nombre de véhicules immatriculés"
+  ) +
+  theme_minimal(base_size = 15) +
+  theme(
+    legend.position = "bottom",
+    plot.title = element_text(face = "bold", size = 18),
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+
+
+### Prévisions Jusqu'à 2040
+
+### Séparer les jeux de données Électrique et Hybride
+```{r}
+# Données électriques
+data_elec_sum <- data_grouped %>%
+  filter(categorie == "Électrique") %>%
+  arrange(annee)
+
+# Données hybrides rechargeables
+data_hybride_sum <- data_grouped %>%
+  filter(categorie == "Hybride rechargeable") %>%
+  arrange(annee)
+```
+
+### Fonction propre pour faire une prévision
+```{r}
+plot_prevision <- function(data_sum, titre) {
+  
+  # 1. Observations jusqu'en 2019
+  data_obs <- data_sum %>% filter(annee <= 2019)
+  
+  # 2. Modèle polynomial degré 2
+  modele_poly <- lm(nombre_annuel ~ poly(annee, 2), data = data_obs)
+  
+  # 3. Années futures
+  future_years <- data.frame(annee = 2020:2040)
+  future_years$projection <- predict(modele_poly, newdata = future_years)
+  
+  # 4. Graphique final
+  ggplot() +
+    geom_line(data = data_obs,
+              aes(x = annee, y = nombre_annuel,
+                  color = "Observé", linetype = "Observé"),
+              size = 1.2) +
+    
+    geom_line(data = future_years,
+              aes(x = annee, y = projection,
+                  color = "Projection", linetype = "Projection"),
+              size = 1.2) +
+    
+    scale_y_continuous(labels = scales::comma)+
+
+    
+    scale_color_manual(
+      name = "Type",
+      values = c("Observé" = "blue", "Projection" = "red")
+    ) +
+    scale_linetype_manual(
+      name = "Type",
+      values = c("Observé" = "solid", "Projection" = "dashed")
+    ) +
+    
+    labs(
+      title = titre,
+      subtitle = "Prévision de 2019 à 2040",
+      x = "Année",
+      y = "Immatriculations"
+    ) +
+    
+    theme_minimal(base_size = 14) +
+    theme(
+      plot.title = element_text(face = "bold", size = 18),
+      legend.position = "top",
+      legend.title = element_text(face = "bold")
+    )
+}
+```
+
+
+### Générer les deux graphiques
+```{r}
+# Prévision pour les voitures électriques
+plot_prevision(data_elec_sum, "Voitures électriques")
+
+# Prévision pour les hybrides rechargeables
+plot_prevision(data_hybride_sum, "Hybrides rechargeables")
+```
+
+
+
+##---------------------- 2.Identification et classification des inégalités locales des voitures électriques. ----------------------##
+```{r}
+# ================================================
+# Carte des inégalités locales VE – 2.I.R.5
+# ================================================
+
+library(readxl)
+library(dplyr)
+library(janitor)
+library(tidyr)
+library(sf)
+library(tmap)
+
+# 1. Importation de la feuille 2019
+data2 <- read_excel("2ir5.xls", sheet = "2019", skip = 3)
+
+# 2. Renommer les colonnes
+colnames(data2)[1:15] <- c(
+  "region",           
+  "departement",      
+  "essence_6cv",      
+  "essence_6_7cv",    
+  "essence_8cv_plus", 
+  "elec_essence_6cv", 
+  "elec_essence_6cv_plus",
+  "gazole_6cv",       
+  "gazole_6cv_plus",  
+  "essence_gpl_6cv",  
+  "essence_gpl_6cv_plus", 
+  "electricite",      
+  "gazole_electricite",
+  "autres",           
+  "total"             
+)
+
+# 3. Remplir les valeurs manquantes de 'region'
+data2 <- tidyr::fill(data2, region, .direction = "down")
+
+# 4. Supprimer les lignes totaux / non déterminées
+data2 <- data2 %>%
+  filter(!grepl("Total|Toutes|non|dét", departement, ignore.case = TRUE))
+
+# 5. Pivot long : énergie et puissance en colonne unique
+data_long <- data2 %>%
+  pivot_longer(
+    cols = c(essence_6cv:electricite),
+    names_to = "energie",
+    values_to = "nombre"
+  ) %>%
+  mutate(nombre = as.numeric(nombre))
+
+# 6. Filtrer uniquement véhicules électriques
+data_elec <- data_long %>%
+  filter(grepl("electricite", energie, ignore.case = TRUE),
+         !is.na(nombre))
+
+# 7. Regrouper par département
+ve_by_dept <- data_elec %>%
+  group_by(departement) %>%
+  summarise(nb_ve = sum(nombre), .groups = "drop")
+
+# 8. Lire le shapefile des départements
+fr_dept <- st_read("Departements.shp")
+
+# 9. Joindre les données VE avec le shapefile
+ve_map <- fr_dept %>%
+  left_join(ve_by_dept, by = c("DDEP_L_LIB" = "departement"))
+
+# 10. Supprimer les géométries vides
+ve_map <- ve_map[!st_is_empty(ve_map), ]
+
+ve_map <- st_make_valid(ve_map) # transforme les polygones invalides en géométries valides.
+
+# 11. Limiter la carte à la France métropolitaine
+ve_map <- st_crop(ve_map, xmin = -5.5, xmax = 10, ymin = 41, ymax = 51)
+
+# 12. Créer une catégorie faible/moyen/élevé pour les VE
+ve_map <- ve_map %>%
+  mutate(categorie = cut(nb_ve,
+                         breaks = quantile(nb_ve, probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
+                         labels = c("Faible", "Moyen", "Élevé"),
+                         include.lowest = TRUE))
+```
+
+### Carte leaflet
+```{r}
+library(leaflet)
+
+# Créer une palette de couleurs pour les catégories
+pal <- colorFactor(palette = "YlOrRd", domain = ve_map$categorie)
+
+# Carte interactive
+leaflet(ve_map) %>%
+  addProviderTiles("CartoDB.Positron") %>%   # fond de carte clair
+  addPolygons(
+    fillColor = ~pal(categorie),
+    weight = 1,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.8,
+    highlight = highlightOptions(
+      weight = 2,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.9,
+      bringToFront = TRUE
+    ),
+    label = ~paste0(DDEP_L_LIB, ": ", nb_ve, " VE"),
+    labelOptions = labelOptions(
+      style = list("font-weight" = "normal", padding = "3px 8px"),
+      textsize = "13px",
+      direction = "auto"
+    )
+  ) %>%
+  addLegend(pal = pal, values = ~categorie, opacity = 0.7, title = "Nombre de VE",
+            position = "bottomright")
+```
+
+
+
+##---------------------- 3. Autonomie et capacité de la batterie moyenne d'une voiture électrique. ----------------------##
+
+
+# Les données ne sont pas telechargeables, ce sont des tableaux sur une page web, je dois donc proceder à du web scraping 
+```{r}
+library(rvest)
+library(dplyr)
+library(purrr)
+library(stringr)
+library(janitor)
+
+# 1. Lire la page
+url <- "https://www.fiches-auto.fr/articles-auto/voiture-electrique/s-852-comparatif-des-voitures-electriques.php"
+page <- read_html(url)
+
+# 2. Sélectionner tous les H2
+nodes_h2 <- page %>% html_nodes("h2")
+titles <- nodes_h2 %>% html_text(trim = TRUE)
+
+# 3. Garder uniquement les H2 contenant un prix
+nodes_useful <- nodes_h2[str_detect(titles, "€|euros|[0-9]")]
+
+# 4. Récupérer les tables associées
+tables <- nodes_useful %>% map(~ {
+  # chercher la première table après le H2, peu importe les nœuds intermédiaires
+  next_table <- html_node(.x, xpath = "following::table[1]")
+  
+  # vérifier si la table existe
+  if (!is.na(next_table)) {
+    # convertir en data.frame et nettoyer les noms
+    html_table(next_table, fill = TRUE) %>% clean_names()
+  } else {
+    NULL
+  }
+}) %>% compact()  # supprime les NULL
+
+# 5. Vérifier le résultat
+# length(tables)       # combien de tables ont été récupérées
+# tables[[1]] %>% head()  # afficher les 6 premières lignes de la première table
+
+
+# Nettoyer chaque table : 
+# - supprimer les lignes où x1 est vide (ce sont des lignes d'en-tête répétées)
+# - renommer correctement les colonnes
+cleaned_tables <- tables %>% 
+  map(~ .x %>% 
+        filter(x1 != "") %>% 
+        rename(
+          modele = x1,  # Nom et version du véhicule
+          acceleration = x2, # Temps 0-100 km/h
+          vmax = x3, # Vitesse maximale annoncée
+          coffre = x4, # Volume du coffre
+          batterie = x5, # Capacité de la batterie
+          autonomie = x6 # Autonomie annoncée par le constructeur
+        ))
+
+# Combiner toutes les tables en un seul data.frame
+df_all <- bind_rows(cleaned_tables)
+
+# Vérifier le résultat
+df_all %>% slice(1:10)
+
+# 3. Créer des variables numériques pour l'analyse
+df_all <- df_all %>%
+  mutate(
+    # batterie_kwh : capacité de la batterie en kWh
+    batterie_kwh = as.numeric(str_remove(batterie, "kWh")),  
+    
+    # autonomie_km : autonomie annoncée en kilomètres
+    autonomie_km = as.numeric(str_remove(autonomie, "km")),  
+)
+
+# 4. Vérification des premières lignes
+df_all %>% 
+  select(modele, batterie_kwh, autonomie_km) %>% 
+  slice(1:10)
+```
+
+### Autonomie moyenne et capacité de batterie moyenne d'une voiture électrique
+```{r}
+df_all %>%
+  summarise(
+    autonomie_moyenne = mean(autonomie_km, na.rm = TRUE),
+    batterie_moyenne = mean(batterie_kwh, na.rm = TRUE)
+  )
+```
+
+
+### Nuage de points Batterrie vs autonomie
+```{r}
+ggplot(df_all, aes(x = batterie_kwh, y = autonomie_km)) +
+  geom_point(color = "#2c7fb8", alpha = 0.7, size = 3) +
+  labs(
+    title = "Relation entre autonomie et capacité de la batterie",
+    x = "Capacité de la batterie (kWh)",
+    y = "Autonomie annoncée (km)"
+  ) +
+  theme_minimal(base_size = 14)
+```
+
+# Mission2.1
+# ANALYSE DU DÉPLOIEMENT DE L'INFRASTRUCTURE DE RECHARGE (IRVE)
+
+
+
+```{r}
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(leaflet)
+library(RColorBrewer)
+library(viridis)
+```
+
+```{r}
+bornes <- read_csv("consolidation-etalab-schema-irve-statique-v-2.3.1-20251110.csv")
+SEPARATEUR_CSV <- ";"                           
+DECIMAL_CSV <- ","
+
+```
+#Nettoyage et préparation
+```{r}
+bornes_clean <- bornes %>%
+mutate(
+consolidated_latitude = as.numeric(str_replace_all(consolidated_latitude, "," , ".")),
+consolidated_longitude = as.numeric(str_replace_all(consolidated_longitude, "," , ".")),
+date_mise_en_service = as.Date(date_mise_en_service),
+annee = year(date_mise_en_service),
+annee_mois = floor_date(date_mise_en_service, "month"),
+trimestre = paste0(year(date_mise_en_service), "-T", quarter(date_mise_en_service)),
+categorie_puissance = case_when(
+puissance_nominale >= 150 ~ "Très Rapide (≥150 kW)",
+puissance_nominale >= 50  ~ "Rapide (50-149 kW)",
+puissance_nominale >= 22  ~ "Accélérée (22-49 kW)",
+puissance_nominale >= 7   ~ "Normale (7-21 kW)",
+puissance_nominale > 0    ~ "Lente (<7 kW)",
+TRUE ~ "non renseignée"
+)
+) %>%
+filter(
+annee >= 2015 & annee <= 2020,
+nbre_pdc > 0,
+!is.na(puissance_nominale),
+!is.na(consolidated_latitude),
+!is.na(consolidated_longitude)
+)
+
+```
+
+#Évolution cumulative
+```{r}
+evolution_cumulative <- bornes_clean %>%
+arrange(date_mise_en_service) %>%
+group_by(annee_mois) %>%
+summarise(
+pdc_mensuels = sum(nbre_pdc, na.rm = TRUE),
+stations_mensuelles = n_distinct(id_station_itinerance)
+) %>%
+ungroup() %>%
+mutate(
+pdc_cumules = cumsum(pdc_mensuels),
+stations_cumulees = cumsum(stations_mensuelles)
+)
+
+```
+#visualisation
+```{r}
+ggplot(evolution_cumulative, aes(annee_mois, pdc_cumules)) +
+geom_line(color = "#2E86AB", linewidth = 1.2) +
+geom_point(data = subset(evolution_cumulative, annee_mois == max(annee_mois)),
+color = "#E74C3C", size = 3) +
+geom_text(
+data = subset(evolution_cumulative, annee_mois == max(annee_mois)),
+aes(label = paste0("2020: ", comma(pdc_cumules), " PDC")),
+vjust = -1, size = 5, fontface = "bold", color = "#E74C3C"
+) +
+scale_y_continuous(labels = comma_format()) +
+scale_x_date(date_breaks = "1 year", date_labels = "%Y",
+limits = c(as.Date("2015-01-01"), as.Date("2020-12-31"))) +
+labs(
+title = "Évolution cumulative des points de charge (2015–2020)",
+x = "Année", y = "PDC cumulés"
+) +
+theme_minimal()
+
+```
+
+#Évolution annuelle
+```{r}
+evolution_annuelle <- bornes_clean %>%
+group_by(annee) %>%
+summarise(pdc_annuels = sum(nbre_pdc)) %>%
+mutate(croissance_pct = (pdc_annuels / lag(pdc_annuels) - 1) * 100)
+
+ggplot(evolution_annuelle, aes(factor(annee), pdc_annuels)) +
+geom_col(fill = "#3498DB", alpha = 0.8) +
+geom_text(aes(label = comma(pdc_annuels)), vjust = -0.5) +
+geom_line(aes(y = pdc_annuels, group = 1),
+color = "#E74C3C", linewidth = 1, linetype = "dashed") +
+scale_y_continuous(labels = comma_format()) +
+labs(
+title = "Déploiement annuel des points de charge (2015–2020)",
+x = "Année", y = "Nombre de PDC"
+) +
+theme_minimal()
+
+```
+#Répartition des puissances (2020)
+
+```{r}
+repartition_2020 <- bornes_clean %>%
+filter(annee == 2020) %>%
+group_by(categorie_puissance) %>%
+summarise(total_pdc = sum(nbre_pdc)) %>%
+mutate(
+pourcentage = total_pdc / sum(total_pdc) * 100,
+label = paste0(round(pourcentage, 1), "%")
+)
+
+ggplot(repartition_2020, aes(fct_reorder(categorie_puissance, pourcentage),
+pourcentage, fill = categorie_puissance)) +
+geom_col() +
+geom_text(aes(label = label), hjust = -0.1) +
+coord_flip() +
+scale_fill_brewer(palette = "Set2") +
+labs(
+title = "Répartition des PDC par puissance – 2020",
+x = "Catégorie", y = "Pourcentage"
+) +
+theme_minimal() +
+theme(legend.position = "none")
+
+```
+
+#Évolution par puissance
+```{r}
+evolution_puissance <- bornes_clean %>%
+group_by(annee, categorie_puissance) %>%
+summarise(total_pdc = sum(nbre_pdc))
+
+ggplot(evolution_puissance, aes(annee, total_pdc, fill = categorie_puissance)) +
+geom_area(alpha = 0.8) +
+scale_fill_brewer(palette = "Set2") +
+labs(
+title = "Évolution du parc par type de puissance (2015–2020)",
+x = "Année", y = "PDC"
+) +
+theme_minimal()
+
+```
+#Aménageurs
+```{r}
+top_amenageurs <- bornes_clean %>%
+count(nom_amenageur, sort = TRUE) %>%
+head(10) %>%
+mutate(nom_amenageur = fct_reorder(nom_amenageur, n))
+
+ggplot(top_amenageurs, aes(nom_amenageur, n)) +
+geom_col(fill = "#27AE60", alpha = 0.8) +
+coord_flip() +
+labs(
+title = "Top 10 des aménageurs (2015–2020)",
+x = "Aménageur", y = "Nombre de PDC"
+) +
+theme_minimal()
+
+```
+
+#Carte – Répartition par puissance
+```{r}
+carte_puissance <- bornes_clean %>%
+filter(annee == 2020) %>%
+sample_n(min(1000, nrow(.)))
+
+pal_puissance <- colorFactor("blue", domain = carte_puissance$categorie_puissance)
+
+leaflet(carte_puissance) %>%
+addProviderTiles("CartoDB.Positron") %>%
+addCircleMarkers(
+lng = ~consolidated_longitude, lat = ~consolidated_latitude,
+radius = 5, fillOpacity = 0.8, stroke = FALSE,
+color = ~pal_puissance(categorie_puissance)
+) %>%
+addLegend(pal = pal_puissance, values = ~categorie_puissance, title = "Puissance")
+
+```
+
+#Carte – Aménageurs
+```{r}
+top_amg <- bornes_clean %>% count(nom_amenageur, sort = TRUE) %>% head(5) %>% pull(nom_amenageur)
+
+carte_amg <- bornes_clean %>%
+filter(annee == 2020) %>%
+sample_n(min(1000, nrow(.))) %>%
+mutate(categorie_amenageur = ifelse(nom_amenageur %in% top_amg, nom_amenageur, "Autres"))
+
+pal_amg <- colorFactor("orange", domain = carte_amg$categorie_amenageur)
+
+leaflet(carte_amg) %>%
+addProviderTiles("CartoDB.Positron") %>%
+addCircleMarkers(
+lng = ~consolidated_longitude, lat = ~consolidated_latitude,
+radius = 5, fillOpacity = 0.8, stroke = FALSE,
+color = ~pal_amg(categorie_amenageur)
+) %>%
+addLegend(pal = pal_amg, values = ~categorie_amenageur, title = "Aménageurs")
+
+```
+
+
+```{r}
+# RÉPARTITION PAR TYPE DE PRISE
+carte_prises <- bornes_clean %>%
+  filter(annee == 2020) %>%
+  sample_n(min(1000, nrow(.))) %>%
+  mutate(type_prise = "Type 2") # Simplification garantie
+pal_prises <- colorFactor("red", domain = carte_prises$type_prise)
+leaflet(carte_prises) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(
+    lng = ~consolidated_longitude, lat = ~consolidated_latitude, radius = 5,
+    color = ~pal_prises(type_prise), fillOpacity = 0.8, stroke = FALSE,
+    popup = ~paste0("<b>", nom_amenageur, "</b><br>PDC: ", nbre_pdc)
+  ) %>%
+  addLegend(pal = pal_prises, values = ~type_prise, title = "Type de Prise")
+```
+
+
+# Mission2.2
+##---------------------- Utilisation des ratios pour le dimensionnement d'un maillage de taille optimale ----------------------##
+
+
+
+```{r}
+# === Packages ===
+library(tidyverse)
+library(lubridate)
+library(scales)
+library(broom)
+
+
+# === Lecture (modifie le chemin si besoin) ===
+irve_file <- "U:/Documents/BUT3/SAE 501 Mener une etude stat/consolidation-etalab-schema-irve-statique-v-2.3.1-20251110.csv"
+irve <- read_csv(irve_file, locale = locale(encoding = "UTF-8"), guess_max = 200000) %>% 
+  janitor::clean_names()
+
+# Aperçu rapide
+glimpse(irve)
+cat("Nombre de lignes initiales :", nrow(irve), "\n")
+
+# === Nettoyage minimal fiable ===
+irve_clean <- irve %>%
+  rename(
+    longitude = consolidated_longitude, 
+    latitude = consolidated_latitude,
+    commune = consolidated_commune,
+    code_postal = consolidated_code_postal,
+    puissance_nominale = puissance_nominale,    # si déjà présent
+    nbre_pdc = nbre_pdc,
+    date_mise_en_service = date_mise_en_service,
+    nom_station = nom_station,
+    id_pdc = id_pdc_itinerance
+  ) %>%
+  # convertir types
+  mutate(
+    nbre_pdc = as.integer(nbre_pdc),
+    puissance_nominale = as.numeric(puissance_nominale),
+    longitude = as.numeric(longitude),
+    latitude = as.numeric(latitude),
+    # Normaliser dates : tolérance sur plusieurs formats
+    date_mise_en_service = parse_date_time(date_mise_en_service, orders = c("Ymd","Y-m-d","d/m/Y","d/%m/%Y","Y-m-d H:M:S"), tz = "UTC")
+  ) %>%
+  # remplacer chaines vides -> NA
+  mutate(across(where(is.character), ~na_if(trimws(.), ""))) %>%
+  # si nbre_pdc NA mais on a un id_pdc -> supposer 1 prise représentée
+  mutate(nbre_pdc = if_else(is.na(nbre_pdc) & !is.na(id_pdc), 1L, nbre_pdc)) %>%
+  # drop duplicats stricts (même contenu de ligne)
+  distinct() %>%
+  # enlever lignes totalement vides
+  filter(!(is.na(latitude) & is.na(longitude) & is.na(nom_station) & is.na(id_pdc)))
+
+cat("Nombre de lignes après nettoyage :", nrow(irve_clean), "\n")
+
+# Some diagnostics
+cat("Nombre de PDC totales estimées (somme nbre_pdc, NA->0) :",
+    sum(replace_na(irve_clean$nbre_pdc, 0)), "\n")
+cat("Nombre de lignes sans coords :", sum(is.na(irve_clean$latitude) | is.na(irve_clean$longitude)), "\n")
+```
+
+
+```{r}
+
+
+# R Markdown Chunk - Améliorations Mission 1
+
+# === Packages supplémentaires pour la cartographie ===
+# install.packages(c("sf", "leaflet")) # Décommenter si non installés
+library(sf)        # Gestion des données spatiales
+library(leaflet)   # Cartographie interactive
+
+# === 1. Préparation des données pour le Ratio kW/PDC par Station ===
+
+# La colonne 'nbre_pdc' est souvent le nombre de PDC *dans la station* et répétée sur
+# chaque ligne de PDC de cette station. Pour éviter de doubler les puissances,
+# on va agréger d'abord.
+
+# Identifier les stations avec coordonnées valides
+irve_stations <- irve_clean %>%
+  # Filtrer les lignes sans coordonnées, essentielles pour la cartographie
+  filter(!is.na(latitude) & !is.na(longitude)) %>%
+  # Grouper par station (id_station_itinerance est le meilleur identifiant)
+  # Si id_station_itinerance est vide, on utilise les coordonnées + nom pour définir la station
+  mutate(station_id_group = coalesce(id_station_itinerance, paste(longitude, latitude, nom_station))) %>%
+  
+  group_by(station_id_group) %>%
+  summarise(
+    # Calculer le nombre réel de PDC et la puissance totale de la station
+    nb_pdc_reel = n(), # Compter le nombre de lignes = nombre de PDC
+    puissance_totale = sum(puissance_nominale, na.rm = TRUE),
+    # Garder une seule paire de coordonnées par station
+    latitude = first(latitude),
+    longitude = first(longitude),
+    commune = first(commune),
+    nom_station = first(nom_station),
+    .groups = 'drop'
+  ) %>%
+  # Calcul du Ratio de Dimensionnement Clé : Puissance Moyenne par PDC
+  mutate(
+    ratio_puissance_pdc = puissance_totale / nb_pdc_reel
+  ) %>%
+  # Filtrer les stations sans puissance totale (très peu probable après le nettoyage)
+  filter(puissance_totale > 0)
+
+
+# === 2. Analyse du Ratio ===
+
+# Statistiques descriptives du ratio
+ratio_stats <- irve_stations %>%
+  summarise(
+    Moyenne_Ratio = mean(ratio_puissance_pdc, na.rm = TRUE),
+    Mediane_Ratio = median(ratio_puissance_pdc, na.rm = TRUE),
+    Min_Ratio = min(ratio_puissance_pdc, na.rm = TRUE),
+    Max_Ratio = max(ratio_puissance_pdc, na.rm = TRUE)
+  )
+
+cat("### Indicateurs de Dimensionnement par Station (Ratio kW/PDC)\n")
+knitr::kable(ratio_stats, caption = "Statistiques descriptives du Ratio Puissance Totale / Nombre de PDC par Station")
+
+# Graphique de la distribution du Ratio
+plot_ratio_distrib <- irve_stations %>%
+  ggplot(aes(x = ratio_puissance_pdc)) +
+  geom_histogram(bins = 30, fill = "#1F78B4", color = "white", alpha = 0.8) +
+  geom_vline(xintercept = ratio_stats$Moyenne_Ratio, linetype = "dashed", color = "red", linewidth = 1) +
+  labs(
+    title = "Distribution du Ratio Puissance Moyenne (kW/PDC) par Station",
+    subtitle = "Moyenne en rouge pointillée",
+    x = "Ratio Puissance Totale / Nombre de PDC (kW)",
+    y = "Nombre de Stations"
+  ) +
+  scale_x_log10(labels = scales::number_format(accuracy = 1)) + # Utilisation d'une échelle logarithmique pour mieux voir la distribution
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+print(plot_ratio_distrib)
+
+
+# === 3. Cartographie du Dimensionnement (Maillage de Taille Optimale) ===
+
+# Créer une palette de couleurs basée sur le ratio pour visualiser la "puissance" du maillage
+ratio_palette <- colorBin(palette = "green", domain = irve_stations$ratio_puissance_pdc, bins = c(0, 11, 22, 50, 150, max(irve_stations$ratio_puissance_pdc, na.rm = TRUE)))
+
+# Créer la carte Leaflet
+carte_maillage <- leaflet(irve_stations) %>%
+  addTiles() %>%
+  addCircles(
+    ~longitude, ~latitude,
+    weight = 1,
+    radius = ~log(nb_pdc_reel) * 1000, # La taille du cercle dépend du nombre de PDC dans la station (log pour mieux visualiser)
+    color = ~ratio_palette(ratio_puissance_pdc), # La couleur dépend du ratio kW/PDC (intensité de recharge)
+    fillOpacity = 0.8,
+    popup = ~paste(
+      "<b>Station :</b>", nom_station, "<br>",
+      "<b>Commune :</b>", commune, "<br>",
+      "<b>PDC :</b>", nb_pdc_reel, "<br>",
+      "<b>Puissance Totale :</b>", round(puissance_totale, 1), "kW<br>",
+      "<b>Ratio (kW/PDC) :</b>", round(ratio_puissance_pdc, 2), "kW"
+    )
+  ) %>%
+  addLegend(
+    pal = ratio_palette,
+    values = ~ratio_puissance_pdc,
+    title = "Ratio kW/PDC (Dimensionnement)"
+  ) %>%
+  setView(lng = 2.3522, lat = 46.5, zoom = 5) # Centrer sur la France
+
+print(carte_maillage)
+```
+
+
+
+
+### ---------------------- Prévision du nombre de PDC à horizon 2025 ----------------------
+
+```{r}
+# === 1. Préparation et Filtrage de la Série Temporelle ===
+
+# Date de début réaliste de l'IRVE en France.
+# On filtre les années avant 2010 (ou l'année de votre première observation non nulle crédible)
+ANNEE_DEBUT_SERIE <- 2014
+
+irve_year_filtered <- irve_clean %>%
+  # 1. Extraction de l'année
+  mutate(annee = year(date_mise_en_service)) %>%
+  filter(!is.na(annee)) %>%
+  
+  # 2. Filtrage des années pour éliminer les points aberrants très anciens
+  filter(annee >= ANNEE_DEBUT_SERIE) %>%
+  
+  # 3. Agrégation et cumul
+  group_by(annee) %>%
+  summarise(
+    nb_pdc_annee = sum(replace_na(nbre_pdc, 0)),
+    .groups = "drop"
+  ) %>%
+  arrange(annee) %>%
+  # Calcul du cumul à partir de l'année de début
+  mutate(
+    cumul_pdc = cumsum(nb_pdc_annee)
+  )
+
+# Affichage des données réelles utilisées pour la modélisation
+cat("### Données réelles utilisées pour la modélisation (à partir de", ANNEE_DEBUT_SERIE, ")\n")
+print(knitr::kable(irve_year_filtered, caption = "Croissance annuelle cumulée des PDC"))
+
+
+# === 2. Modèle de Croissance Exponentielle (Plus réaliste) ===
+
+# La croissance d'une infrastructure est souvent exponentielle: y = a * exp(b*x)
+# On transforme la variable Annee en 'Temps' depuis l'année de début
+irve_model_data <- irve_year_filtered %>%
+  mutate(Temps = annee - ANNEE_DEBUT_SERIE + 1) # Temps = 1 pour l'année de début
+
+# Modèle non-linéaire (exponentiel) : log(cumul) ~ Temps
+fit_exp <- lm(log(cumul_pdc) ~ Temps, data = irve_model_data)
+# Afficher le résumé pour évaluer le R²
+# summary(fit_exp)
+
+# === 3. Prédiction pour 2025 ===
+
+year_target <- 2025
+temps_cible <- year_target - ANNEE_DEBUT_SERIE + 1
+
+# Créer le dataframe pour la prédiction
+data_prediction <- data.frame(Temps = temps_cible)
+
+# Prédiction sur l'échelle logarithmique (log(cumul))
+pred_log <- predict(
+  fit_exp,
+  newdata = data_prediction,
+  interval = "prediction",
+  level = 0.95
+)
+
+# Reconversion en échelle réelle (PDC cumulés)
+pred_exp_2025 <- as_tibble(exp(pred_log)) %>%
+  mutate(annee = year_target)
+
+pred_val <- round(pred_exp_2025$fit, 0)
+lwr_val <- round(pred_exp_2025$lwr, 0)
+upr_val <- round(pred_exp_2025$upr, 0)
+
+cat(sprintf("\n### Résultat de la Prévision Exponentielle pour 2025\n"))
+cat(sprintf("* Prévision de PDC cumulés : **%s**\n", format(pred_val, big.mark = " ")))
+cat(sprintf("* Intervalle de Confiance à 95%% : **%s** à **%s**\n", format(lwr_val, big.mark = " "), format(upr_val, big.mark = " ")))
+
+
+# === 4. Graphique de l'Évolution et de la Prévision ===
+
+# Créer un dataframe pour la droite de tendance et la projection
+projection_temps <- data.frame(Temps = seq(min(irve_model_data$Temps), temps_cible, length.out = 100))
+projection_temps$log_cumul <- predict(fit_exp, newdata = projection_temps)
+projection_temps$cumul_pred <- exp(projection_temps$log_cumul)
+projection_temps$annee <- projection_temps$Temps + ANNEE_DEBUT_SERIE - 1
+
+# Graphique final
+plot_final <- ggplot(irve_model_data, aes(x = annee, y = cumul_pdc)) + # <-- L'esthétique 'y' est 'cumul_pdc' ici
+  
+  # Données réelles
+  geom_point(color = "steelblue", size = 3) +
+  geom_line(color = "steelblue", linewidth = 1) +
+  
+  # Ligne de Tendance (Exponentielle retransformée)
+  geom_line(data = projection_temps, aes(x = annee, y = cumul_pred), 
+            color = "red", linetype = "dashed", linewidth = 1) +
+  
+  # Point de Prévision
+  geom_point(
+    data = pred_exp_2025,
+    aes(x = annee, y = fit),
+    color = "darkgreen", size = 4, shape = 18
+    # NOTE : inherit.aes = FALSE n'est pas nécessaire ici car 'annee' et 'fit' sont définis
+  ) +
+  
+  # Barre d'Intervalle de Confiance 95%
+  geom_errorbar(
+    data = pred_exp_2025,
+    aes(x = annee, ymin = lwr, ymax = upr), # <-- CORRECTION : 'lwr' et 'upr' sont les colonnes correctes
+    width = 0.5,
+    color = "darkgreen",
+    linewidth = 1,
+    inherit.aes = FALSE # <-- Maintenir ceci pour utiliser uniquement les données et esthétiques de 'pred_exp_2025'
+  ) +
+  
+  # Mise en forme
+  scale_y_continuous(labels = scales::number_format(big.mark = " ")) +
+  labs(
+    title = paste0("Croissance et Prévision Exponentielle des PDC cumulés jusqu’en ", year_target),
+    subtitle = paste0(
+      "Prédiction pour 2025 : ", format(pred_val, big.mark = " "), 
+      " PDC (IC95% : ", format(lwr_val, big.mark = " "), 
+      " – ", format(upr_val, big.mark = " "), ")"
+    ),
+    x = "Année",
+    y = "PDC cumulés (Échelle Réelle)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+
+print(plot_final)
+```
+
+```{r}
+# R Markdown Chunk - Zoom sur l'Évolution 2020-2024
+
+# Définir la plage de zoom
+ANNEE_ZOOM_DEBUT <- 2020
+ANNEE_ZOOM_FIN <- 2024
+
+# === 1. Préparation des données pour le Graphique Zoomé ===
+
+# Nous réutilisons le dataframe 'irve_model_data' qui contient 'annee' et 'cumul_pdc'
+
+# Créer un dataframe pour la droite de tendance exponentielle, limitée au zoom
+projection_zoom <- data.frame(
+  Temps = seq(
+    min(irve_model_data$Temps), # Commence à l'année de début de la série (ex: 2014)
+    temps_cible,                # Va jusqu'à l'année cible (2025)
+    length.out = 100
+  )
+)
+projection_zoom$log_cumul <- predict(fit_exp, newdata = projection_zoom)
+projection_zoom$cumul_pred <- exp(projection_zoom$log_cumul)
+projection_zoom$annee <- projection_zoom$Temps + ANNEE_DEBUT_SERIE - 1
+
+# Filtrer les données de la droite de tendance pour le zoom et la prévision
+projection_zoom_filtered <- projection_zoom %>%
+  filter(annee >= ANNEE_ZOOM_DEBUT)
+
+# Filtrer les données réelles pour le zoom
+data_zoom <- irve_model_data %>%
+  filter(annee >= ANNEE_ZOOM_DEBUT & annee <= ANNEE_ZOOM_FIN)
+
+
+# === 2. Création du Graphique Zoomé (2020-2024 avec projection 2025) ===
+
+plot_zoom <- ggplot(data_zoom, aes(x = annee, y = cumul_pdc)) +
+  
+  # Données réelles (2020-2024)
+  geom_point(color = "steelblue", size = 4) +
+  geom_line(color = "steelblue", linewidth = 1.5) +
+  
+  # Ligne de Tendance Exponentielle sur la période zoomée + projection
+  geom_line(data = projection_zoom_filtered, aes(x = annee, y = cumul_pred), 
+            color = "red", linetype = "dashed", linewidth = 1) +
+  
+  # Point de Prévision (2025)
+  geom_point(
+    data = pred_exp_2025,
+    aes(x = annee, y = fit),
+    color = "darkgreen", size = 4, shape = 18
+  ) +
+  
+  # Intervalle de Confiance (2025)
+  geom_errorbar(
+    data = pred_exp_2025,
+    aes(x = annee, ymin = lwr, ymax = upr),
+    width = 0.1,
+    color = "darkgreen",
+    linewidth = 1,
+    inherit.aes = FALSE
+  ) +
+  
+  # Mise en forme et labels
+  scale_x_continuous(breaks = seq(ANNEE_ZOOM_DEBUT, year_target, 1)) +
+  scale_y_continuous(labels = scales::number_format(big.mark = " ")) +
+  
+  labs(
+    title = paste0("Zoom sur l'Accélération : Évolution des PDC (", ANNEE_ZOOM_DEBUT, " - ", ANNEE_ZOOM_FIN, ") et Prévision 2025"),
+    subtitle = paste0(
+      "Projection 2025 (Exponentielle) : ", format(pred_val, big.mark = " "), 
+      " PDC (IC95% : ", format(lwr_val, big.mark = " "), " – ", format(upr_val, big.mark = " "), ")"
+    ),
+    x = "Année",
+    y = "PDC cumulés (Échelle Réelle)"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5))
+
+print(plot_zoom)
+```
+
+
+
+
+
+
+# Mission3
+##---------------------- 1.Évolution du parc automobile électrique jusqu’à 2040. ----------------------##
+
+
+
+```{r}
+library(readxl)
+
+rte_2018 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2018.xlsx")
+rte_2019 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2019.xlsx")
+rte_2020 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2020.xlsx")
+rte_2021 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2021.xlsx")
+rte_2022 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2022.xlsx")
+rte_2023 <- read_excel("eCO2mix_RTE_Annuel-Definitif_2023.xlsx")
+```
+
+
+Tableau Consommation électrique en France (Mégawatt)
+```{r}
+library(dplyr)
+
+
+conso <- bind_rows(
+  rte_2018 %>% select(Date, Consommation),
+  rte_2019 %>% select(Date, Consommation),
+  rte_2020 %>% select(Date, Consommation),
+  rte_2021 %>% select(Date, Consommation),
+  rte_2022 %>% select(Date, Consommation),
+  rte_2023 %>% select(Date, Consommation)
+)
+
+conso <- na.omit(conso)
+```
+
+Data frame Année, Mois, Consommation
+```{r}
+# Convertir la colonne Date en type Date
+conso$Date <- as.Date(conso$Date)
+
+library(dplyr)
+library(lubridate)
+
+conso<- conso%>%
+  mutate(
+    Année = year(Date),
+    Mois  = month(Date)
+  )
+```
+
+
+```{r}
+library(dplyr)
+
+monthly_avg <- conso %>%
+  group_by(Année, Mois) %>%
+  summarise(Conso_moy = mean(Consommation, na.rm = TRUE)) %>%
+  ungroup() %>%
+  mutate(Date_mois = as.Date(sprintf("%04d-%02d-01", Année, Mois)))
+```
+
+Graphique
+```{r}
+# Visualiser la saisonnalité mensuelle par année
+
+library(ggplot2)
+
+# dates des january pour les labels
+january_dates  <- monthly_avg$Date_mois[monthly_avg$Mois == 1]
+january_labels <- monthly_avg$Année[monthly_avg$Mois == 1]
+
+ggplot(monthly_avg, aes(x = Date_mois, y = Conso_moy)) +
+  geom_line(color = "steelblue", size = 1) +
+  scale_x_date(
+    breaks = january_dates,      # on ne place des graduations qu'en janvier
+    labels = january_labels      # les labels sont juste les années
+  ) +
+  labs(
+    title = "Consommation électrique en France (Mégawatt)",
+    x = "Années",
+    y = "Consommation moyenne mensuelle (MW)"
+  ) +
+  theme_minimal()
+```
+
+Tableau Filières de production (MW) en France (Mégawatt)
+```{r}
+library(dplyr)
+
+
+FP <- bind_rows(
+  rte_2018 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2019 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2020 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2021 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2022 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul),
+  rte_2023 %>% select(Date, Nucléaire, Hydraulique, Gaz, Eolien, Bioénergies, Solaire, Charbon, Fioul)
+)
+
+FP <- na.omit(FP)
+
+# Convertir la colonne Date en type Date
+conso$Date <- as.Date(conso$Date)
+
+library(dplyr)
+library(lubridate)
+
+FP<- FP%>%
+  mutate(
+    Année = year(Date),
+    Mois  = month(Date)
+  )
+```
+
+```{r}
+library(dplyr)
+
+FP_2020 <- FP %>%
+  filter(Année == 2020) %>%
+  summarise(
+    Nucléaire   = sum(Nucléaire, na.rm = TRUE),
+    Hydraulique = sum(Hydraulique, na.rm = TRUE),
+    Gaz         = sum(Gaz, na.rm = TRUE),
+    Eolien      = sum(Eolien, na.rm = TRUE),
+    Bioénergies = sum(Bioénergies, na.rm = TRUE),
+    Solaire     = sum(Solaire, na.rm = TRUE),
+    Charbon     = sum(Charbon, na.rm = TRUE),
+    Fioul       = sum(Fioul, na.rm = TRUE)
+  ) %>%
+  tidyr::pivot_longer(cols = everything(),
+                      names_to = "Filière",
+                      values_to = "Production")
+
+FP_2020 <- FP_2020 %>%
+  arrange(Production) %>%
+  mutate(Filière = factor(Filière, levels = Filière))
+```
+
+
+```{r}
+library(ggplot2)
+library(scales)  # pour comma()
+
+ggplot(FP_2020, aes(x = Filière, y = Production)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Filières de production 2020 (Mégawatt)",
+    x = NULL,
+    y = "Production totale (MW)"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5)
+  ) +
+  scale_y_continuous(labels = comma)  # <-- affiche les nombres détaillés
+```
+
+Profiler un pic d’utilisation des bornes de recharge
+```{r}
+
+```
+
+
+
+
+
+
