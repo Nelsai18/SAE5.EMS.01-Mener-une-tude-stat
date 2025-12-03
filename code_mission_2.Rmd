@@ -131,7 +131,7 @@ ggplot(data_eh, aes(x = annee, y = nombre_annuel, color = categorie)) +
     name = "Type d'énergie"
   ) +
   labs(
-    title = "Évolution des immatriculations : Électrique vs Hybride rechargeable",
+    title = "Évolution immatriculations : Électrique vs Hybride",
     x = "Année",
     y = "Nombre de véhicules immatriculés"
   ) +
@@ -142,7 +142,24 @@ ggplot(data_eh, aes(x = annee, y = nombre_annuel, color = categorie)) +
     axis.text.x = element_text(angle = 45, hjust = 1)
   )
 ```
+Ce graphique montre l’évolution des immatriculations de voitures électriques et hybrides rechargeables depuis le début des années 2000.
 
+- On observe un début très lent pour les deux technologies. De 2000 à 2010, les courbes sont quasiment à zéro. Les véhicules électriques étaient encore rares, chers, et l’infrastructure (bornes, autonomie) était limitée.Les hybrides rechargeables venaient à peine d’être introduits.
+-> Le marché n’existait pratiquement pas.
+
+- À partir de 2010, l’électrique décolle doucement. Entre 2010 et 2015, l’électrique commence à monter progressivement.Les hybrides rechargeables montent aussi mais restent au-dessus des électriques.
+Les raisons sont les suivantes : 
+Les hybrides rassurent (pas de problème d'autonomie).
+L’électrique progresse lentement mais sûrement avec les premières politiques publiques.
+
+- Après 2015, il y'a un changement brutal :
+L’hybride rechargeable explose littéralement, dépassant largement l’électrique.
+L’électrique continue de monter, mais moins vite.
+-> L’hybride rechargeable devient la motorisation "de transition" entre thermique et électrique.
+
+- Depuis 2018/2019, on observe une accélération nette :
+La croissance des deux technologies devient quasi exponentielle, avec l’électrique qui rattrape progressivement et l'hybride qui prend une avance énorme.
+-> On entre dans une phase où l’électromobilité devient une tendance majeure du marché.
 
 
 
@@ -163,7 +180,7 @@ ggplot(data_therm, aes(x = annee, y = nombre_annuel, color = categorie)) +
     name = "Motorisation"
   ) +
   labs(
-    title = "Évolution des immatriculations : Essence, Gazole, GPL/Gaz naturel",
+    title = "Évolution immatriculations : Non électriques",
     x = "Année",
     y = "Nombre de véhicules immatriculés"
   ) +
@@ -175,6 +192,28 @@ ggplot(data_therm, aes(x = annee, y = nombre_annuel, color = categorie)) +
   )
 ```
 
+Ce graphique montre l’évolution des principales motorisations thermiques.
+C’est très intéressant car il permet de comprendre le contexte dans lequel l’électrique progresse.
+
+- Le gazole passe d’un statut dominant à un déclin structurel :
+De 2000 à 2012, le diesel (gazole) est ultra dominant (près de 1,5 million d’immatriculations par an).
+Après 2012 : effondrement continu de la courbe.
+Les raisons sont : Normes antipollution, Scandale du Dieselgate* (2015), Restriction dans les grandes villes, changement de perception du public
+
+*L'affaire Volkswagen, aussi appelée « dieselgate », est un scandale industriel et sanitaire lié à l'utilisation par le groupe Volkswagen, de 2009 à 2015, de différentes techniques visant à réduire frauduleusement les émissions polluantes de certains de ses moteurs diesel et essence lors des essais d'homologation.
+
+- L’essence : baisse puis remontée spectaculaire
+De 2000 à 2010 : l’essence baisse progressivement, remplacée par le diesel.
+À partir de 2010, et surtout après 2015 : l’essence remonte fortement, jusqu’à repasser au-dessus du diesel. Cela s'explique du fait que le diesel devient impopulaire. L’essence redevient la motorisation "par défaut".
+
+- Le GPL / Gaz naturel est quand à lui très faible tout au long de la période. Cette technologie ne décolle pas en France.
+
+
+Conclusion des deux graphiques : 
+Les deux graphiques montrent une transition très nette dans les immatriculations de véhicules en France.
+Les motorisations thermiques dominent historiquement, mais le diesel s’effondre depuis 2012 tandis que l’essence reprend de la place.
+En parallèle, l’électrique et surtout l’hybride rechargeable connaissent une croissance exponentielle depuis 2015, portée par les politiques publiques, l’amélioration des technologies et l’évolution des comportements.
+On observe donc une transition progressive mais irréversible vers les motorisations électriques.
 
 
 ### Prévisions Jusqu'à 2040
@@ -255,6 +294,12 @@ plot_prevision(data_elec_sum, "Voitures électriques")
 # Prévision pour les hybrides rechargeables
 plot_prevision(data_hybride_sum, "Hybrides rechargeables")
 ```
+
+Les prévisions sont basées sur une régression polynomiale de degré 2
+appliquée uniquement sur les données observées jusqu’en 2019 puis extrapolée jusqu’en 2040. C’est un modèle simple qui prolonge la dynamique observée juste avant 2020.
+Les deux technologies (électrique et hybride) suivent une même logique de croissance accélérée.
+Mais selon le modèle, les hybrides rechargeables dominent nettement le marché d’ici 2040 avec des immatriculations qui approchent 800 000 par an contre 300000 pour les voitures électriques.
+
 
 
 
@@ -340,42 +385,28 @@ ve_map <- ve_map %>%
                          breaks = quantile(nb_ve, probs = c(0, 0.33, 0.66, 1), na.rm = TRUE),
                          labels = c("Faible", "Moyen", "Élevé"),
                          include.lowest = TRUE))
+
+# 13. Carte choroplèthe centrée sur France métropolitaine
+ tm_shape(ve_map) +
+   tm_polygons("categorie",
+               palette = "YlOrRd",
+               title = "Nombre de VE par département") +
+   tm_layout(legend.outside = TRUE) +
+   tm_crs("EPSG:2154") +
+   tm_view(bbox = st_bbox(ve_map))
 ```
 
-### Carte leaflet
-```{r}
-library(leaflet)
+Carte du nombre de voitures électriques par département :
 
-# Créer une palette de couleurs pour les catégories
-pal <- colorFactor(palette = "YlOrRd", domain = ve_map$categorie)
+Cette carte a été construite en associant les données du parc de voitures électriques à un fond cartographique des départements, puis en classant chaque département en trois niveaux (faible, moyen, élevé) selon son nombre de véhicules. Une palette de couleurs graduée a ensuite été appliquée pour visualiser clairement les contrastes territoriaux.
 
-# Carte interactive
-leaflet(ve_map) %>%
-  addProviderTiles("CartoDB.Positron") %>%   # fond de carte clair
-  addPolygons(
-    fillColor = ~pal(categorie),
-    weight = 1,
-    opacity = 1,
-    color = "white",
-    dashArray = "3",
-    fillOpacity = 0.8,
-    highlight = highlightOptions(
-      weight = 2,
-      color = "#666",
-      dashArray = "",
-      fillOpacity = 0.9,
-      bringToFront = TRUE
-    ),
-    label = ~paste0(DDEP_L_LIB, ": ", nb_ve, " VE"),
-    labelOptions = labelOptions(
-      style = list("font-weight" = "normal", padding = "3px 8px"),
-      textsize = "13px",
-      direction = "auto"
-    )
-  ) %>%
-  addLegend(pal = pal, values = ~categorie, opacity = 0.7, title = "Nombre de VE",
-            position = "bottomright")
-```
+Le graphique met en évidence une répartition très hétérogène des voitures électriques sur le territoire français. Les départements affichant les niveaux les plus élevés se situent principalement dans l’ouest (notamment le long de la façade atlantique) et dans le sud-est, ainsi que dans certains territoires densément peuplés du nord et de l’est. Ces zones correspondent généralement à des régions urbaines, plus dynamiques économiquement, où les infrastructures de recharge sont mieux développées et où la transition énergétique est plus avancée.
+
+À l’inverse, de nombreux départements du centre du pays, ainsi que certains territoires ruraux, se situent dans les niveaux les plus faibles. Cela peut être lié à une densité de population plus faible, à une dépendance persistante aux véhicules thermiques, ou encore à un réseau de bornes de recharge moins dense, ce qui limite l’adoption des voitures électriques.
+
+Globalement, la carte souligne l’importance du contexte territorial : les voitures électriques se diffusent plus rapidement dans les zones urbanisées et bien équipées, tandis que les territoires ruraux et intermédiaires accusent un retard significatif. Cette lecture met en lumière des enjeux forts d’équité territoriale et de planification des infrastructures de recharge pour accompagner une transition homogène.
+
+
 
 
 
@@ -478,6 +509,16 @@ ggplot(df_all, aes(x = batterie_kwh, y = autonomie_km)) +
   ) +
   theme_minimal(base_size = 14)
 ```
+
+Autonomie et capacité de la batterie moyenne d’une voiture électrique :
+
+Comme les données de consommation n’étaient pas directement accessibles (présentées sous forme de tableaux non téléchargeables sur une page web), nous avons procédé à un web scraping afin d’extraire automatiquement les caractéristiques techniques des modèles disponibles. Faute de données fiables sur la consommation, l’analyse repose donc sur la capacité de la batterie, variable fortement liée à l’autonomie.
+
+Les données collectées permettent d’estimer une autonomie moyenne d’environ 446 km pour une capacité de batterie moyenne de 65 kWh. Le nuage de points montrant la relation entre ces deux variables met en évidence une corrélation clairement positive : plus la capacité de la batterie augmente, plus l’autonomie annoncée est élevée. Cette tendance est cohérente avec la logique technologique des véhicules électriques, où une batterie plus grande permet de stocker davantage d’énergie et donc d’augmenter la distance parcourable.
+
+Bien que la dispersion reste notable (certaines voitures offrant une autonomie plus faible que d’autres à capacité équivalente), l’ensemble du nuage illustre une trajectoire ascendante nette. Cela s’explique par des différences d’efficacité énergétique entre constructeurs, de poids du véhicule ou encore de performance des moteurs. Globalement, le graphique confirme que la capacité de la batterie constitue un déterminant majeur de l’autonomie d’un véhicule électrique.
+
+
 
 # Mission2.1
 # ANALYSE DU DÉPLOIEMENT DE L'INFRASTRUCTURE DE RECHARGE (IRVE)
@@ -1255,6 +1296,7 @@ Profiler un pic d’utilisation des bornes de recharge
 ```{r}
 
 ```
+
 
 
 
