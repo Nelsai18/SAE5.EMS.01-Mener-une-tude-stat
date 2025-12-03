@@ -85,8 +85,10 @@ x = "Année", y = "PDC cumulés"
 theme_minimal()
 
 ```
-La courbe monte tout le temps, sans jamais redescendre: ça veut dire qu’on ajoute des points de charge chaque mois et que le parc grossit en continu sur toute la période.La pente devient de plus en plus forte à partir de 2017–2018 puis surtout 2019–2020: le rythme d’installation s’accélère, on n’est plus dans une phase de test mais dans un vrai déploiement massif.
+La courbe monte tout le temps, sans jamais redescendre: ça veut dire qu’on ajoute des points de charge chaque mois et que le parc grossit en continu sur toute la période.La pente devient de plus en plus forte à partir de 2017–2018,
+puis surtout 2019–2020: le rythme d’installation s’accélère, on n’est plus dans une phase de test mais dans un vrai déploiement massif.
 On peut donc dire qu' au début la croissance est lente, puis la France “met le turbo” et finit 2020 avec un volume de PDC très nettement supérieur à celui de 2015
+
 #Évolution annuelle
 ```{r}
 evolution_annuelle <- bornes_clean %>%
@@ -222,6 +224,7 @@ addLegend(pal = pal_amg, values = ~categorie_amenageur, title = "Aménageurs")
 
 ```
 -------------------------------------#----------------------------------------------------------
+
 
 
 
