@@ -85,7 +85,8 @@ x = "Année", y = "PDC cumulés"
 theme_minimal()
 
 ```
-
+La courbe monte tout le temps, sans jamais redescendre: ça veut dire qu’on ajoute des points de charge chaque mois et que le parc grossit en continu sur toute la période.La pente devient de plus en plus forte à partir de 2017–2018 puis surtout 2019–2020: le rythme d’installation s’accélère, on n’est plus dans une phase de test mais dans un vrai déploiement massif.
+On peut donc dire qu' au début la croissance est lente, puis la France “met le turbo” et finit 2020 avec un volume de PDC très nettement supérieur à celui de 2015
 #Évolution annuelle
 ```{r}
 evolution_annuelle <- bornes_clean %>%
@@ -106,6 +107,11 @@ x = "Année", y = "Nombre de PDC"
 theme_minimal()
 
 ```
+2015–2017: montée progressive, chaque année on installe plus de PDC que l’année précédente.
+2018: chute par rapport à 2017, donc une sorte de “pause” ou de ralentissement dans les installations 
+2019–2020: explosion en 2019 puis niveau encore très élevé en 2020, même si un peu en dessous de 2019.
+on remarque que la courbe en pointillés montre bien que la tendance n’est pas linéaire, il y a un creux en 2018 puis une forte reprise. On ne peut donc pas extrapoler 2015-2020 avec une simple droite, il faut tenir compte de ces ruptures de rythme
+
 #Répartition des puissances (2020)
 
 ```{r}
@@ -132,6 +138,8 @@ theme_minimal() +
 theme(legend.position = "none")
 
 ```
+En 2020 : 39.1% Accélérée, 33.4% Très Rapide, 13.4% Rapide, 8.7% Normale, 1.5% Lente, 4% non renseignée.Cela veut dire que Presque 3/4 du parc (72%) c'est des bornes puissantes (accélérée + très rapide). Les bornes lentes et normales, c'est presque rien (1.5% + 8.7% = 10%).
+d'ou Le parc 2020 est principalement constitué de bornes qui chargent vite.
 
 #Évolution par puissance
 ```{r}
@@ -149,6 +157,9 @@ x = "Année", y = "PDC"
 theme_minimal()
 
 ```
+Au début (2015), les zones basses et moyennes dominent (lent, normal). À partir de 2017-2018, les zones hautes (rapide, très rapide, accélérée) commencent à grandir. En 2020, ce sont elles qui dominent.
+cela montre que Le parc change de composition. Au début, il y avait surtout des petites bornes. À la fin, il y a surtout des grosses bornes. Cette transformation se voit clairement entre 2017 et 2020.
+
 #Aménageurs
 ```{r}
 top_amenageurs <- bornes_clean %>%
@@ -166,6 +177,9 @@ x = "Aménageur", y = "Nombre de PDC"
 theme_minimal()
 
 ```
+TESLA a 42%, DRIVECO 12.2%, IONITY 9.7%, Ionity 8.1% (doublon), les autres moins de 4% chacun.
+ça veut dire qu'Une seule entreprise (TESLA) a installé presque la moitié de toutes les bornes. Les deux ou trois suivantes (DRIVECO, IONITY) ont beaucoup moins. Les autres sont minuscules.
+TESLA domine largement.
 
 #Carte – Répartition par puissance
 ```{r}
@@ -207,26 +221,8 @@ color = ~pal_amg(categorie_amenageur)
 addLegend(pal = pal_amg, values = ~categorie_amenageur, title = "Aménageurs")
 
 ```
-
-
-```{r}
-# RÉPARTITION PAR TYPE DE PRISE
-carte_prises <- bornes_clean %>%
-  filter(annee == 2020) %>%
-  sample_n(min(1000, nrow(.))) %>%
-  mutate(type_prise = "Type 2") # Simplification garantie
-pal_prises <- colorFactor("red", domain = carte_prises$type_prise)
-leaflet(carte_prises) %>%
-  addProviderTiles("CartoDB.Positron") %>%
-  addCircleMarkers(
-    lng = ~consolidated_longitude, lat = ~consolidated_latitude, radius = 5,
-    color = ~pal_prises(type_prise), fillOpacity = 0.8, stroke = FALSE,
-    popup = ~paste0("<b>", nom_amenageur, "</b><br>PDC: ", nbre_pdc)
-  ) %>%
-  addLegend(pal = pal_prises, values = ~type_prise, title = "Type de Prise")
-```
-
 -------------------------------------#----------------------------------------------------------
+
 
 
 
