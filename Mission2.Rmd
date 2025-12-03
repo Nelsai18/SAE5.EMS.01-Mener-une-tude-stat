@@ -85,9 +85,9 @@ x = "Année", y = "PDC cumulés"
 theme_minimal()
 
 ```
-La courbe monte tout le temps, sans jamais redescendre: ça veut dire qu’on ajoute des points de charge chaque mois et que le parc grossit en continu sur toute la période.La pente devient de plus en plus forte à partir de 2017–2018,
-puis surtout 2019–2020: le rythme d’installation s’accélère, on n’est plus dans une phase de test mais dans un vrai déploiement massif.
-On peut donc dire qu' au début la croissance est lente, puis la France “met le turbo” et finit 2020 avec un volume de PDC très nettement supérieur à celui de 2015
+
+Le réseau de points de charge en France connaît une croissance continue et de plus en plus rapide entre 2015 et 2020.
+2018 marque un changement de rythme, suivi d’une accélération encore plus forte en 2019.
 
 #Évolution annuelle
 ```{r}
@@ -109,9 +109,8 @@ x = "Année", y = "Nombre de PDC"
 theme_minimal()
 
 ```
-2015–2017: montée progressive, chaque année on installe plus de PDC que l’année précédente.
-2018: chute par rapport à 2017, donc une sorte de “pause” ou de ralentissement dans les installations 
-2019–2020: explosion en 2019 puis niveau encore très élevé en 2020, même si un peu en dessous de 2019.
+Le déploiement augmente fortement entre 2015 et 2017.
+En 2018, il y a une baisse nette par rapport à 2017 , 2019 est l’année avec le plus grand nombre d’installations et 2020 est la deuxième meilleure année, légèrement en dessous de 2019 mais bien au-dessus des années 2015–2018
 on remarque que la courbe en pointillés montre bien que la tendance n’est pas linéaire, il y a un creux en 2018 puis une forte reprise. On ne peut donc pas extrapoler 2015-2020 avec une simple droite, il faut tenir compte de ces ruptures de rythme
 
 #Répartition des puissances (2020)
@@ -143,7 +142,7 @@ theme(legend.position = "none")
 En 2020 : 39.1% Accélérée, 33.4% Très Rapide, 13.4% Rapide, 8.7% Normale, 1.5% Lente, 4% non renseignée.Cela veut dire que Presque 3/4 du parc (72%) c'est des bornes puissantes (accélérée + très rapide). Les bornes lentes et normales, c'est presque rien (1.5% + 8.7% = 10%).
 d'ou Le parc 2020 est principalement constitué de bornes qui chargent vite.
 
-#Évolution par puissance
+#Évolution de la répartion par puissance
 ```{r}
 evolution_puissance <- bornes_clean %>%
 group_by(annee, categorie_puissance) %>%
@@ -162,7 +161,7 @@ theme_minimal()
 Au début (2015), les zones basses et moyennes dominent (lent, normal). À partir de 2017-2018, les zones hautes (rapide, très rapide, accélérée) commencent à grandir. En 2020, ce sont elles qui dominent.
 cela montre que Le parc change de composition. Au début, il y avait surtout des petites bornes. À la fin, il y a surtout des grosses bornes. Cette transformation se voit clairement entre 2017 et 2020.
 
-#Aménageurs
+# Analyse des Aménageurs
 ```{r}
 top_amenageurs <- bornes_clean %>%
 count(nom_amenageur, sort = TRUE) %>%
@@ -183,6 +182,60 @@ TESLA a 42%, DRIVECO 12.2%, IONITY 9.7%, Ionity 8.1% (doublon), les autres moins
 ça veut dire qu'Une seule entreprise (TESLA) a installé presque la moitié de toutes les bornes. Les deux ou trois suivantes (DRIVECO, IONITY) ont beaucoup moins. Les autres sont minuscules.
 TESLA domine largement.
 
+ ANALYSE DES TYPES DE PRISES
+```{r}
+colonnes_prises <- c("prise_type_ef", "prise_type_chademo", "prise_type_combo_ccs",
+                     "prise_type_2", "prise_type_3")
+
+colonnes_existantes <- colonnes_prises[colonnes_prises %in% colnames(bornes_clean)]
+
+if (length(colonnes_existantes) > 0) {
+
+  resultats_prises <- data.frame()
+
+  for (col in colonnes_existantes) {
+
+    nb_true <- sum(bornes_clean[[col]] %in% c(TRUE, "true", 1), na.rm = TRUE)
+
+    if (nb_true > 0) {
+      nom_lisible <- case_when(
+        col == "prise_type_ef" ~ "Type EF",
+        col == "prise_type_chademo" ~ "CHAdeMO",
+        col == "prise_type_combo_ccs" ~ "Combo CCS",
+        col == "prise_type_2" ~ "Type 2",
+        col == "prise_type_3" ~ "Type 3",
+        TRUE ~ col
+      )
+
+      resultats_prises <- rbind(
+        resultats_prises,
+        data.frame(type_prise = nom_lisible, nombre = nb_true)
+      )
+    }
+  }
+
+  if (nrow(resultats_prises) > 0) {
+
+    resultats_prises <- resultats_prises %>%
+      mutate(
+        pourcentage = nombre / sum(nombre) * 100,
+        label = paste0(round(pourcentage, 1), "%")
+      )
+
+    ggplot(resultats_prises, aes(reorder(type_prise, nombre), nombre, fill = type_prise)) +
+      geom_col() +
+      geom_text(aes(label = label), hjust = -0.1, size = 4) +
+      coord_flip() +
+      theme_minimal() +
+      theme(legend.position = "none")
+  }
+
+} else {
+  cat("Aucune donnée de type de prise disponible\n")
+}
+```
+L'analyse de la répartition des types de prises révèle une nette priorité à la recharge en courant alternatif (AC), qui représente 80.7% de l'offre totale (Type 2 et Type EF). Cette dominance indique que l'infrastructure est principalement conçue pour la recharge de destination (lente ou accélérée) dans les lieux de stationnement prolongé (domicile, travail, parkings publics). En parallèle, la recharge rapide en courant continu (DC), essentielle pour les longs trajets, ne constitue que 19.2% de l'offre (Combo CCS et CHAdeMO). De plus, au sein du segment DC, le Combo CCS (16.4%) est clairement le standard dominant, confirmant son adoption européenne au détriment du CHAdeMO (2.8%).
+
 #Carte – Répartition par puissance
 ```{r}
 carte_puissance <- bornes_clean %>%
@@ -201,7 +254,8 @@ color = ~pal_puissance(categorie_puissance)
 addLegend(pal = pal_puissance, values = ~categorie_puissance, title = "Puissance")
 
 ```
-
+On a les Catégories de puissance de charge (kW)
+La majorité de la France recharge lentement. Les bornes se concentrent sur les axes routiers et les grandes villes. Les points rapides pour les longs trajets sont visibles mais sont minoritaires
 #Carte – Aménageurs
 ```{r}
 top_amg <- bornes_clean %>% count(nom_amenageur, sort = TRUE) %>% head(5) %>% pull(nom_amenageur)
@@ -223,7 +277,33 @@ color = ~pal_amg(categorie_amenageur)
 addLegend(pal = pal_amg, values = ~categorie_amenageur, title = "Aménageurs")
 
 ```
+Opérateur de la borne (DRIVECO, IONITY, TESLA, Autres).
+Le marché est fragmenté. Il n'y a pas de monopole. De nombreux petits acteurs partagent le réseau avec quelques grands réseaux nationaux (comme Tesla et Ionity), ce qui mène à une couverture dispersée.
+
+# carte type de prise
+```{r}
+
+carte_prises <- bornes_clean %>%
+  filter(annee == 2020) %>%
+  sample_n(min(1000, nrow(.))) %>%
+  mutate(type_prise = "Type 2")
+
+pal_prises <- colorFactor("red", domain = carte_prises$type_prise)
+
+leaflet(carte_prises) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  addCircleMarkers(
+    lng = ~consolidated_longitude, lat = ~consolidated_latitude,
+    radius = 5, color = ~pal_prises(type_prise),
+    fillOpacity = 0.8, stroke = FALSE,
+    popup = ~paste0("<b>", nom_amenageur, "</b><br>PDC: ", nbre_pdc)
+  ) %>%
+  addLegend(pal = pal_prises, values = ~type_prise, title = "Type de Prise")
+
+```
+La prise Type 2 est la norme. Elle couvre massivement tout le territoire où il y a des bornes. C'est le standard de la recharge quotidienne en France.
 -------------------------------------#----------------------------------------------------------
+
 
 
 
